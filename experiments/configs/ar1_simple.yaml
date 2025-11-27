@@ -1,0 +1,42 @@
+# ======================================================================
+# EXPERIMENTO SIMPLE: AR(1) vs ARIMA vs Chronos-Bolt-Tiny
+# ======================================================================
+
+experiment:
+  name: "AR1_Simple_Case"
+  description: "Caso simple de validación: AR(1) vs ARIMA(1,0,0) vs Chronos-Bolt-Tiny"
+
+# Data Generating Process
+dgp:
+  type: "AR1"
+  params:
+    phi: 0.7       # Persistencia autoregresiva
+    mu: 0.0        # Media del proceso
+    sigma: 1.0     # Desviación estándar de innovaciones
+
+# Configuración de simulación
+simulation:
+  T: 200           # Longitud de cada serie
+  horizon: 12      # Horizonte de pronóstico
+  n_sim: 500       # Número de simulaciones Monte Carlo
+  seed: 12345      # Semilla para reproducibilidad
+
+# Modelos a comparar
+models:
+  - name: "ARIMA(1,0,0)"
+    type: "arima"
+    params:
+      order: [1, 0, 0]
+
+  - name: "Chronos-Tiny"
+    type: "chronos"
+    params:
+      model_size: "tiny"
+      device: "cpu"
+
+# Configuración de salida (opcional, para futuras extensiones)
+output:
+  save_raw: false
+  save_aggregated: true
+  format: "csv"
+  path: "results/raw/ar1_simple/"
