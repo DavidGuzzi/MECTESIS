@@ -41,7 +41,7 @@ class ChronosModel(BaseModel):
         self.pipeline = ChronosPipeline.from_pretrained(
             model_name,
             device_map=self.device,
-            torch_dtype=torch.float32
+            dtype=torch.float32
         )
 
     def fit(self, y_train: np.ndarray, **kwargs):
@@ -95,8 +95,13 @@ class ChronosModel(BaseModel):
         )
 
         # Convert to numpy and compute median across samples as point forecast
-        # Shape: (num_samples, horizon) -> (horizon,)
-        forecast_median = np.median(forecast_samples.numpy(), axis=0)
+        # Shape: (batch, num_samples, horizon) -> (horizon,)
+        forecast_array = forecast_samples.numpy()
+
+        # Remove batch dimension and compute median across samples
+        # Shape: (1, 20, 12) -> (20, 12) -> (12,)
+        forecast_array = forecast_array.squeeze(0)  # Remove batch dimension
+        forecast_median = np.median(forecast_array, axis=0)  # Median across samples
 
         return forecast_median
 
