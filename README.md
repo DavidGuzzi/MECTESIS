@@ -17,7 +17,7 @@ Este repositorio implementa simulaciones Monte Carlo para comparar el desempeño
 ### Caso Simple Implementado
 
 - **DGP**: Proceso AR(1)
-- **Modelos**: ARIMA(1,0,0) vs Chronos-Bolt-Tiny
+- **Modelos**: ARIMA(1,0,0) vs Chronos-T5-Tiny
 - **Métricas**: Sesgo, Varianza, MSE, RMSE por horizonte
 - **Simulaciones**: 500 réplicas Monte Carlo
 
@@ -51,7 +51,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Dependencias**: numpy, pandas, statsmodels, chronos, pyyaml
+**Dependencias**: numpy, pandas, torch, statsmodels, chronos-forecasting, pyyaml
 
 ---
 
@@ -89,11 +89,11 @@ MECTESIS/
 ├── experiments/configs/     # Configuraciones YAML
 ├── scripts/                 # Scripts ejecutables
 ├── prueba.py               # Script original (referencia)
-├── claude.md               # Documentación completa
+├── notas.md                # Documentación completa
 └── requirements.txt        # Dependencias
 ```
 
-**Ver [claude.md](claude.md)** para documentación detallada.
+**Ver [notas.md](notas.md)** para documentación detallada.
 
 ---
 
@@ -112,7 +112,7 @@ MECTESIS/
 - **Paper**: Chronos-2: From Univariate to Universal Forecasting (2025)
   https://arxiv.org/abs/2510.15821
 
-- **Documentación**: Ver [claude.md](claude.md)
+- **Documentación**: Ver [notas.md](notas.md)
 
 ---
 

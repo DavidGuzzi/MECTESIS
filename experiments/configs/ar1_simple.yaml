@@ -1,10 +1,10 @@
 # ======================================================================
-# EXPERIMENTO SIMPLE: AR(1) vs ARIMA vs Chronos-Bolt-Tiny
+# EXPERIMENTO SIMPLE: AR(1) vs ARIMA vs Chronos-T5-Tiny
 # ======================================================================
 
 experiment:
   name: "AR1_Simple_Case"
-  description: "Caso simple de validación: AR(1) vs ARIMA(1,0,0) vs Chronos-Bolt-Tiny"
+  description: "Caso simple de validación: AR(1) vs ARIMA(1,0,0) vs Chronos-T5-Tiny"
 
 # Data Generating Process
 dgp:
@@ -28,7 +28,7 @@ models:
     params:
       order: [1, 0, 0]
 
-  - name: "Chronos-Tiny"
+  - name: "Chronos-T5-Tiny"
     type: "chronos"
     params:
       model_size: "tiny"
