@@ -90,7 +90,7 @@ class ChronosModel(BaseModel):
 
         # Generate forecast (returns tensor of shape [num_samples, horizon])
         forecast_samples = self.pipeline.predict(
-            context=context,
+            context,  # First positional argument (NOT context=)
             prediction_length=horizon
         )
 
