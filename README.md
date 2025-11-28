@@ -112,8 +112,6 @@ MECTESIS/
 - **Paper**: Chronos-2: From Univariate to Universal Forecasting (2025)
   https://arxiv.org/abs/2510.15821
 
-- **Documentación**: Ver [notas.md](notas.md)
-
 ---
 
 ## Contacto
