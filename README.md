@@ -113,10 +113,3 @@ MECTESIS/
   https://arxiv.org/abs/2510.15821
 
 ---
-
-## Contacto
-
-**David Guzzi**
-dguzzi_10@hotmail.com
-https://github.com/DavidGuzzi/MECTESIS
-
