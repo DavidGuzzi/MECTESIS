@@ -92,15 +92,3 @@ MECTESIS/
 ├── notas.md                # Documentación completa
 └── requirements.txt        # Dependencias
 ```
-
-**Ver [notas.md](notas.md)** para documentación detallada.
-
----
-
-## Extensiones Futuras
-
-- Más DGPs: ARMA, VAR, tendencias, estacionalidad
-- Más modelos clásicos: ETS, Theta, VAR
-- Más TSFMs: Chronos (mini/small/base), TimesFM, Moirai
-- Validación empírica: series macroeconómicas de Argentina
-- Tests unitarios y setup.py
