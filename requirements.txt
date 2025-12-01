@@ -11,6 +11,7 @@ chronos-forecasting>=1.0.0
 pyyaml>=6.0
 
 # Notebook y visualización
+ipywidgets>=8.0.0
 matplotlib>=3.6.0
 scipy>=1.10.0
 seaborn>=0.12.0
