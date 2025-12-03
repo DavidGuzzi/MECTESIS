@@ -49,11 +49,13 @@
 | **2.3 VAR(2) bivariado** | $Y_t = A_1Y_{t-1} + A_2Y_{t-2} + \varepsilon_t$ | VAR(2) |
 | **2.4 VAR(1) con 3 variables** | Matriz $3\times3$ conocida | VAR(1) |
 | **2.5 VAR(1) con 5 variables** | Matriz $5\times5$ conocida | VAR(1) |
+| **2.6 VAR(1) bivariado con volatilidad condicional (ARCH/GARCH diagonal)** | Media: $Y_t = A_1 Y_{t-1} + u_t$, con $A_1$ como en 2.1. Ruido: $u_t = (u_{1t},u_{2t})'$, donde cada componente sigue $u_{it} = \sigma_{it} z_{it}$, $z_{it}\sim N(0,1)$ y $\sigma_{it}^2 = \omega_i + \alpha_i u_{i,t-1}^2 + \beta_i \sigma_{i,t-1}^2$ (GARCH(1,1) por ecuación). | VAR(1) para la media, más GARCH(1,1) univariado por ecuación sobre los residuos (modelo tipo VAR + GARCH diagonal); comparación con VAR(1) estándar sin modelar GARCH para ver impacto de ignorar la volatilidad condicional. |
 
-Opcionales (solo si se decide ampliar análisis):
+Opcionales:
 
 - Cointegración → VECM  
 - Exógenas → VARMAX  
+- Extensión de volatilidad multivariada → MGARCH (p.ej. BEKK o DCC).
 
 ---
 
@@ -69,6 +71,8 @@ Opcionales (solo si se decide ampliar análisis):
 | **3.2 ARIMAX débil** | $Y_t = 0.6Y_{t-1} + 0.2X_t + \varepsilon_t$ | SARIMAX(1,0,0) |
 | **3.3 ARIMAX con dos covariables** | $Y_t = \phi Y_{t-1} + \beta_1X_{1t} + \beta_2X_{2t} + \varepsilon_t$ | SARIMAX(1,0,0) |
 | **3.4 VARX bivariado** | $Y_t = A Y_{t-1} + \gamma X_t + \varepsilon_t$ | VARMAX(1) + exógena |
+| **3.5 ARIMAX con volatilidad condicional (ARIMAX–GARCH)** | Media: $Y_t = 0.6Y_{t-1} + 0.5X_t + \varepsilon_t$. Ruido: $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$, con $\sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2$ (GARCH(1,1)). Opcional: permitir que $X_t$ también afecte la varianza vía un término $\delta X_t^2$ en la ecuación de $\sigma_t^2$. | ARIMAX (estimado como SARIMAX con exógenas) para la media, y GARCH(1,1) univariado sobre residuos para la varianza condicional; comparación con ARIMAX homocedástico para medir el efecto de modelar explícitamente la volatilidad. |
+
 
 ---
 
