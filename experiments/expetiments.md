@@ -4,13 +4,13 @@
 
 | Elemento | Detalle |
 |---------|---------|
-| Tamaños muestrales | $T_{\text{chico}} \in \{100, 200\}$ — $T_{\text{grande}} \in \{800, 1000\}$ |
-| Horizontes | $h \in \{1, 6, 12, 24\}$ |
-| Repeticiones Monte Carlo | $R \in \{200, 500, 1000\}$ |
+| Tamaños muestrales | $T \in \{200, 1000\}$ |
+| Horizontes | $h \in \{12, 24\}$ |
+| Repeticiones Monte Carlo | $R \in \{500, 1000\}$ |
 | Semilla | 03649 |
 | TSFM utilizados (todos los experimentos) | Chronos-2 (central), TimesFM-2.5, Moirai-2.0, TimeGPT-1 |
 | Filosofía del trabajo | Comparar desempeño predictivo bajo **DGP controlados**, variando propiedades de la serie (persistencia, estacionalidad, tendencia, ruptura, dimensión). Evaluar **sesgo**, **varianza**, **MSE/RMSE**, y **intervalos**, identificando bajo qué estructuras los TSFM dominan o son dominados por modelos clásicos. |
-| Consideraciones adicionales | Resultados almacenados por experimento/horizonte/tamaño. Se usa la misma semilla para reproducibilidad. Los modelos clásicos pueden ser “core” o “adicionales”, según relevancia por experimento. |
+| Consideraciones adicionales | Resultados almacenados por experimento/horizonte/tamaño/repetición. Se usa la misma semilla para reproducibilidad. Los modelos clásicos pueden ser “core” o “adicionales”, según relevancia por experimento. |
 
 ---
 
@@ -20,10 +20,10 @@
 
 ### Experimentos Univariados
 
-| Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos (Opcionales) |
+| Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos (Adicionales) |
 |-----|-----|-------------------------|------------------------------|
-| **1.1 AR(1) baja persistencia** | $Y_t = 0.3\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive; Drift | ETS(A,N,N); Theta |
-| **1.2 AR(1) alta persistencia** | $Y_t = 0.9\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive | ETS(A,A,N); Theta |
+| **1.1 AR(1) baja persistencia** | $Y_t = 0.3\Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive; Drift | ETS(A,N,N); Theta |
+| **1.2 AR(1) alta persistencia** | $Y_t = 0.9\Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive | ETS(A,A,N); Theta |
 | **1.3 RW I(1)** | $Y_t = Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
 | **1.4 RW con drift** | $Y_t = 0.5 + Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
 | **1.5 AR(1) + tendencia** | $Y_t = 5 + 0.1t + 0.6Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0)+trend | Holt-Winters; ETS; Theta |
