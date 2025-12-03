@@ -20,7 +20,7 @@
 
 ### Experimentos Univariados
 
-| Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos Adicionales | Importaciones Python |
+| Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos (Opcionales) | Importaciones Python |
 |-----|-----|-------------------------|------------------------------|----------------------|
 | **1.1 AR(1) baja persistencia** | $Y_t = 0.3\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive; Drift | ETS(A,N,N); Theta | `from statsmodels.tsa.arima.model import ARIMA`<br>`from sktime.forecasting.naive import NaiveForecaster`<br>`from statsmodels.tsa.exponential_smoothing.ets import ETSModel`<br>`from sktime.forecasting.theta import ThetaForecaster` |
 | **1.2 AR(1) alta persistencia** | $Y_t = 0.9\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive | ETS(A,A,N); Theta | (igual 1.1) |
