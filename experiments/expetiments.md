@@ -41,8 +41,8 @@
 
 | Exp | DGP | Modelos Clásicos (Core) |
 |-----|-----|-------------------------|
-| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A Y_{t-1} + \varepsilon_t$, $A=\begin{pmatrix}0.5&0.1\\0.1&0.5\end{pmatrix}$ | VAR(1) |
-| **2.2 VAR(1) bivariado – alta interdependencia** | coef. cruzados = 0.5 | VAR(1) |
+| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.1\\0.1&0.5\end{pmatrix}$ | VAR(1) |
+| **2.2 VAR(1) bivariado – alta interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.5\\0.5&0.5\end{pmatrix}$ | VAR(1) |
 | **2.3 VAR(2) bivariado** | $Y_t = A_1Y_{t-1} + A_2Y_{t-2} + \varepsilon_t$ | VAR(2) |
 | **2.4 VAR(1) con 3 variables** | Matriz $3\times3$ conocida | VAR(1) |
 | **2.5 VAR(1) con 5 variables** | Matriz $5\times5$ conocida | VAR(1) |
