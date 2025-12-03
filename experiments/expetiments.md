@@ -1,10 +1,6 @@
 # DISEÑO EXPERIMENTAL – TESIS MEC  
-Formato cuadro, listo para VS Code.  
-Basado en `tesis_mec_experimentos.docx` (referencia interna).
 
----
-
-# 0. SETUP GENERAL
+## 0. SETUP GENERAL
 
 | Elemento | Detalle |
 |---------|---------|
@@ -17,11 +13,11 @@ Basado en `tesis_mec_experimentos.docx` (referencia interna).
 
 ---
 
-# 1. BLOQUE UNIVARIADO – CUADRO COMPLETO
+## 1. BLOQUE UNIVARIADO – CUADRO COMPLETO
 
 ---
 
-## Experimentos Univariados
+### Experimentos Univariados
 
 | Exp | DGP | Modelos Clásicos | Importaciones Python |
 |-----|-----|------------------|----------------------|
@@ -36,11 +32,11 @@ Basado en `tesis_mec_experimentos.docx` (referencia interna).
 
 ---
 
-# 2. BLOQUE MULTIVARIADO – CUADRO COMPLETO
+## 2. BLOQUE MULTIVARIADO – CUADRO COMPLETO
 
 ---
 
-## Experimentos VAR / VECM / VARMAX
+### Experimentos VAR / VECM / VARMAX
 
 | Exp | DGP | Modelos Clásicos | Importaciones Python |
 |-----|-----|------------------|----------------------|
@@ -60,11 +56,11 @@ from statsmodels.tsa.statespace.varmax import VARMAX
 
 ---
 
-# 3. BLOQUE CON COVARIABLES – CUADRO COMPLETO
+## 3. BLOQUE CON COVARIABLES – CUADRO COMPLETO
 
 ---
 
-## Experimentos ARIMAX / VARX
+### Experimentos ARIMAX / VARX
 
 | Exp | DGP | Modelos Clásicos | Importaciones Python |
 |-----|-----|------------------|----------------------|
@@ -75,7 +71,7 @@ from statsmodels.tsa.statespace.varmax import VARMAX
 
 ---
 
-# 4. VALIDACIÓN EMPÍRICA – CUADRO COMPLETO
+## 4. VALIDACIÓN EMPÍRICA – CUADRO COMPLETO
 
 ---
 
@@ -97,7 +93,7 @@ from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 
 ---
 
-# 5. MÉTRICAS – CUADRO COMPLETO
+## 5. MÉTRICAS – CUADRO COMPLETO
 
 | Categoría | Métricas |
 |-----------|----------|
@@ -108,7 +104,7 @@ from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 
 ---
 
-# 6. CONSIDERACIONES ADICIONALES
+## 6. CONSIDERACIONES ADICIONALES
 
 | Tema | Detalle |
 |------|---------|
@@ -116,7 +112,3 @@ from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 | Comparación TSFM vs clásicos | Punto, intervalo, probabilidad y calibración |
 | Robustez | Cambiar seed, cambiar variance de ε_t, introducir heteroscedasticidad opcional |
 | Implementación | Guardar resultados por experimento en parquet/csv con estructura jerárquica |
-
----
-
-# FIN DEL DOCUMENTO .md
