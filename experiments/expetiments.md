@@ -9,7 +9,7 @@
 | Repeticiones Monte Carlo | $R \in \{500, 1000\}$ |
 | Semilla | 03649 |
 | TSFM utilizados (todos los experimentos) | Chronos-2 (central), TimesFM-2.5, Moirai-2.0, TimeGPT-1 |
-| Filosofía del trabajo | Comparar desempeño predictivo bajo **DGP controlados**, variando propiedades de la serie (persistencia, estacionalidad, tendencia, ruptura, dimensión). Evaluar **sesgo**, **varianza**, **MSE/RMSE**, y **intervalos**, identificando bajo qué estructuras los TSFM dominan o son dominados por modelos clásicos. |
+| Filosofía del trabajo | Comparar desempeño predictivo bajo **DGP controlados**, variando propiedades de la serie (persistencia, estacionalidad, tendencia, ruptura, dimensión y dinámica de volatilidad). Evaluar **sesgo**, **varianza**, **MSE/RMSE**, y **intervalos**, identificando bajo qué estructuras los TSFM dominan o son dominados por modelos clásicos. |
 | Consideraciones adicionales | Resultados almacenados por experimento/horizonte/tamaño/repetición. Se usa la misma semilla para reproducibilidad. Los modelos clásicos pueden ser “core” o “adicionales”, según relevancia por experimento. |
 
 ---
@@ -21,15 +21,18 @@
 ### Experimentos Univariados
 
 | Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos (Adicionales) |
-|-----|-----|-------------------------|------------------------------|
+|-----|-----|-------------------------|---------------------------------|
 | **1.1 AR(1) baja persistencia** | $Y_t = 0.3\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive; Drift | ETS(A,N,N); Theta |
 | **1.2 AR(1) alta persistencia** | $Y_t = 0.9\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive | ETS(A,A,N); Theta |
 | **1.3 RW I(1) sin drift** | $Y_t = Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
 | **1.4 RW I(1) con drift** | $Y_t = 0.5 + Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
-| **1.5 AR(1) + tendencia** | $Y_t = 5 + 0.1t + 0.6Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0)+trend | Holt-Winters; ETS; Theta |
-| **1.6 SARIMA trimestral (s=4)** | $(1-\phi L)(1-\Phi L^4)Y_t=\varepsilon_t$ | SARIMA(1,0,0)(1,0,0)[4]; Seasonal Naive | ETS(A,A,A) |
-| **1.7 SARIMA mensual (s=12)** | $(1-L)(1-L^{12})Y_t=\varepsilon_t$ | SARIMA estacional; Seasonal Naive | Holt-Winters multiplicativo; ETS |
+| **1.5 AR(1) + tendencia** | $Y_t = 5 + 0.1t + 0.6Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0)+trend | Holt–Winters; ETS; Theta |
+| **1.6 SARIMA trimestral (s=4)** | $(1-\phi L)(1-\Phi L^4)Y_t=\varepsilon_t$ | SARIMA(1,0,0)(1,0,0)\_{4}; Seasonal Naive | ETS(A,A,A) |
+| **1.7 SARIMA mensual (s=12)** | $(1-L)(1-L^{12})Y_t=\varepsilon_t$ | SARIMA estacional; Seasonal Naive | Holt–Winters multiplicativo; ETS |
 | **1.8 AR(1) con quiebre** | $Y_t=0.3Y_{t-1}+\varepsilon_t$ para $t\le T/2$; $Y_t=0.8Y_{t-1}+\varepsilon_t$ para $t>T/2$ | ARIMA(1,0,0) sin quiebre | ARIMA con dummy; ETS |
+| **1.9 AR(1)–GARCH(1,1)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; Varianza cond.: $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \beta\,\sigma_{t-1}^2$ con $\alpha,\beta>0$ y $\alpha+\beta<1$ | ARIMA(1,0,0) + GARCH(1,1) (modelo de media y varianza conjunta) | ARIMA(1,0,0) con varianza homocedástica (modelo mal especificado para comparar impacto de ignorar GARCH) |
+| **1.10 GARCH(1,1) con media cero** | $Y_t = \sigma_t \varepsilon_t$, $\varepsilon_t\sim N(0,1)$, $\sigma_t^2 = \omega + \alpha\,Y_{t-1}^2 + \beta\,\sigma_{t-1}^2$ | GARCH(1,1) (modelo puro de volatilidad); Naive sobre niveles para contraste | ARIMA(0,0,0) con varianza constante (para estudiar fallas de modelos clásicos al ignorar volatilidad condicional) |
+| **1.11 AR(1)–GJR–GARCH (asimetría)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$; $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \gamma\,\varepsilon_{t-1}^2\mathbf{1}\{\varepsilon_{t-1}<0\} + \beta\,\sigma_{t-1}^2$ | AR(1) + GJR–GARCH (para capturar efectos de “leverage”) | AR(1)+GARCH(1,1) estándar (sin término asimétrico) para ver pérdida de capacidad al ignorar asimetría |
 
 ---
 
@@ -41,7 +44,7 @@
 
 | Exp | DGP | Modelos Clásicos (Core) |
 |-----|-----|-------------------------|
-| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.1\\0.1&0.5\end{pmatrix}$ | VAR(1) |
+| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.1\\0.1&0.5\end{pmatrix}$ | VAR(1) |
 | **2.2 VAR(1) bivariado – alta interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.5\\0.5&0.5\end{pmatrix}$ | VAR(1) |
 | **2.3 VAR(2) bivariado** | $Y_t = A_1Y_{t-1} + A_2Y_{t-2} + \varepsilon_t$ | VAR(2) |
 | **2.4 VAR(1) con 3 variables** | Matriz $3\times3$ conocida | VAR(1) |
@@ -49,8 +52,8 @@
 
 Opcionales (solo si se decide ampliar análisis):
 
-- Cointegración → `VECM`
-- Exógenas → `VARMAX`
+- Cointegración → VECM  
+- Exógenas → VARMAX  
 
 ---
 
@@ -94,8 +97,8 @@ Opcionales (solo si se decide ampliar análisis):
 | Sesgo | $\text{Bias} = \mathbb{E}[\hat{y} - y]$ |
 | Varianza | $\text{Var}(\hat{y})$ |
 | MSE | $\text{MSE} = \mathbb{E}[(\hat{y}-y)^2]$ |
-| RMSE | $\sqrt{\text{MSE}}$ |
-| Intervalos | Cobertura y amplitud |
+| RMSE | $\text{RMSE} = \sqrt{\text{MSE}}$ |
+| Intervalos | Cobertura y amplitud de intervalos (por ejemplo 90% y 95%) |
 
 ### Métricas adicionales (opcionales)
 
