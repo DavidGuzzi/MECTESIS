@@ -5,7 +5,7 @@
 | Elemento | Detalle |
 |---------|---------|
 | Tamaños muestrales | $T \in \{200, 1000\}$ |
-| Horizontes | $h \in \{12, 24\}$ |
+| Horizontes | $h \in \{1-12, 13-24\}$ |
 | Repeticiones Monte Carlo | $R \in \{500, 1000\}$ |
 | Semilla | 03649 |
 | TSFM utilizados (todos los experimentos) | Chronos-2 (central), TimesFM-2.5, Moirai-2.0, TimeGPT-1 |
