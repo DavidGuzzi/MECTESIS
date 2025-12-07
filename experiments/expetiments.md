@@ -44,12 +44,12 @@
 
 | Exp | DGP | Modelos Clásicos (Core) |
 |-----|-----|-------------------------|
-| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.1\\0.1&0.5\end{pmatrix}$ | VAR(1) |
-| **2.2 VAR(1) bivariado – alta interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1=\begin{pmatrix}0.5&0.5\\0.5&0.5\end{pmatrix}$ | VAR(1) |
+| **2.1 VAR(1) bivariado – baja interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1 = \begin{pmatrix}0.5 & 0.1 \\ 0.1 & 0.5\end{pmatrix}$ | VAR(1) |
+| **2.2 VAR(1) bivariado – alta interdependencia** | $Y_t = A_1 Y_{t-1} + \varepsilon_t$, donde $A_1 = \begin{pmatrix}0.5 & 0.5 \\ 0.5 & 0.5\end{pmatrix}$ | VAR(1) |
 | **2.3 VAR(2) bivariado** | $Y_t = A_1Y_{t-1} + A_2Y_{t-2} + \varepsilon_t$ | VAR(2) |
 | **2.4 VAR(1) con 3 variables** | Matriz $3\times3$ conocida | VAR(1) |
 | **2.5 VAR(1) con 5 variables** | Matriz $5\times5$ conocida | VAR(1) |
-| **2.6 VAR(1) bivariado con volatilidad condicional (ARCH/GARCH diagonal)** | Media: $Y_t = A_1 Y_{t-1} + u_t$, con $A_1$ como en 2.1. Ruido: $u_t = (u_{1t},u_{2t})'$, donde cada componente sigue $u_{it} = \sigma_{it} z_{it}$, $z_{it}\sim N(0,1)$ y $\sigma_{it}^2 = \omega_i + \alpha_i u_{i,t-1}^2 + \beta_i \sigma_{i,t-1}^2$ (GARCH(1,1) por ecuación). | VAR(1) para la media, más GARCH(1,1) univariado por ecuación sobre los residuos (modelo tipo VAR + GARCH diagonal); comparación con VAR(1) estándar sin modelar GARCH para ver impacto de ignorar la volatilidad condicional. |
+| **2.6 VAR(1) bivariado con volatilidad condicional (ARCH/GARCH)** | Media: $Y_t = A_1 Y_{t-1} + u_t$. Ruido: $u_t = (u_{1t},u_{2t})'$, $u_{it} = \sigma_{it} z_{it}$, $z_{it}\sim N(0,1)$ y $\sigma_{it}^2 = \omega_i + \alpha_i u_{i,t-1}^2 + \beta_i \sigma_{i,t-1}^2$ (GARCH(1,1)). | VAR(1) + GARCH diagonal; comparación con VAR(1) estándar. |
 
 Opcionales:
 
