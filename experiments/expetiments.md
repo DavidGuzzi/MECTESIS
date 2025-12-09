@@ -104,7 +104,7 @@ Opcionales:
 | RMSE | $\text{RMSE} = \sqrt{\text{MSE}}$ |
 | Intervalos | Cobertura y amplitud de intervalos (por ejemplo 90% y 95%) |
 
-### Métricas adicionales (opcionales)
+### Métricas adicionales (opcionales a revisar)
 
 | Categoría | Métricas |
 |-----------|----------|
