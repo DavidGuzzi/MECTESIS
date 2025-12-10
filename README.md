@@ -45,37 +45,6 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-### 3. Instalar dependencias
-
-```bash
-pip install -r requirements.txt
-```
-
-**Dependencias**: numpy, pandas, torch, statsmodels, chronos-forecasting, pyyaml
-
----
-
-## Uso
-
-### Ejecutar Experimento Simple
-
-```bash
-python scripts/run_experiment.py experiments/configs/ar1_simple.yaml
-```
-
-### Comparar con Script Original
-
-```bash
-# Script original (referencia)
-python prueba.py
-
-# Nueva arquitectura modular
-python scripts/run_experiment.py experiments/configs/ar1_simple.yaml
-```
-
-Ambos deberían producir resultados idénticos con `seed=12345`.
-
----
 
 ## Estructura del Proyecto
 
