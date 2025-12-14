@@ -1,6 +1,6 @@
 # MECTESIS
 
-
+```
 ├── mectesis/                 # Paquete principal (modular)
 │   ├── dgp/                 # Data Generating Processes
 │   ├── models/              # Modelos ARIMA + Chronos
