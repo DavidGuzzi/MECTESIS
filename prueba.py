@@ -182,7 +182,7 @@ def monte_carlo(T: int,
 if __name__ == "__main__":
     T = 200          # longitud de cada serie
     H = 12           # horizonte a pronosticar
-    phi = 0.7        # persistencia
+    phi = 0.3        # persistencia
     mu = 0.0
     sigma = 1.0
     N = 500          # número de simulaciones Monte Carlo
