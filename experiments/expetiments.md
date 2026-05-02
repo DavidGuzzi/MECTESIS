@@ -13,6 +13,26 @@
 | Consideraciones adicionales | Resultados almacenados por experimento/horizonte/tamaño/repetición. Se usa la misma semilla para reproducibilidad. Los modelos clásicos pueden ser “core” o “adicionales”, según relevancia por experimento. |
 
 ---
+## 0.1. SETUP GENERAL DEL EXPERIMENTO
+
+| Elemento | Diseño propuesto |
+|---|---|
+| Tamaños muestrales | T ∈ {200, 1000} |
+| Horizonte máximo de forecast | H = 24 |
+| Bloques de evaluación | Corto plazo: h = 1,…,12; mediano plazo: h = 13,…,24 |
+| Repeticiones Monte Carlo | R = 500 como base; R = 1000 para robustez |
+| Semilla | 03649 |
+| DGPs univariados | 11 |
+| Series simuladas con R = 500 | 11 × 2 × 500 = 11.000 |
+| Series simuladas con R = 1000 | 11 × 2 × 1000 = 22.000 |
+| Modelos clásicos | Solo modelos core por experimento |
+| TSFM principal | Chronos-2 |
+| TSFM ampliados | TimesFM-2.5, Moirai-2.0, TimeGPT-1 |
+| Estrategia computacional | Primero Chronos-2 vs clásicos; luego comparación ampliada con otros TSFM |
+| Métricas puntuales | Bias, varianza, MSE, RMSE, intervalos |
+| Almacenamiento | Resultados por DGP, T, repetición, modelo, horizonte y bloque |
+
+---
 
 ## 1. BLOQUE UNIVARIADO – CUADRO COMPLETO
 
