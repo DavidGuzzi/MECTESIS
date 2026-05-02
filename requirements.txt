@@ -5,7 +5,7 @@ torch>=2.0.0
 
 # Modelos
 statsmodels>=0.14.0
-chronos-forecasting>=1.0.0
+chronos-forecasting[extras]>=2.2
 
 # Configuración
 pyyaml>=6.0
