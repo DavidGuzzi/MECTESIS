@@ -6,10 +6,13 @@ Usage:
     python scripts/run_experiment.py experiments/configs/ar1_simple.yaml
 """
 
+import os
 import sys
 import argparse
 from pathlib import Path
 import yaml
+
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -49,8 +52,7 @@ def create_models(models_config: list) -> list:
             models.append(ARIMAModel(order=tuple(params['order'])))
         elif model_type == "chronos":
             models.append(ChronosModel(
-                model_size=params['model_size'],
-                device=params['device']
+                device=params.get('device', 'cpu')
             ))
         else:
             raise ValueError(f"Unknown model type: {model_type}")

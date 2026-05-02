@@ -4,108 +4,63 @@ Chronos Time Series Foundation Model implementation.
 
 import numpy as np
 import torch
-from chronos import ChronosPipeline
+from chronos import Chronos2Pipeline
 from .base import BaseModel
 
 
 class ChronosModel(BaseModel):
     """
-    Amazon Chronos-T5 Time Series Foundation Model.
+    Amazon Chronos-2 Time Series Foundation Model.
 
-    This class wraps the ChronosPipeline (Chronos-T5 variant) to conform
-    to the BaseModel interface. Chronos-T5 is the original, well-documented
-    variant that uses T5 architecture for time series forecasting.
+    Wraps Chronos2Pipeline using the dict-based input API. Chronos-2
+    supports covariates and has a context window of 8192 tokens.
+    The model is loaded once and reused across Monte Carlo replicas.
     """
 
-    def __init__(self, model_size: str = "tiny", device: str = "cpu"):
+    def __init__(self, device: str = "cpu"):
         """
-        Initialize Chronos-T5 model.
-
         Parameters
         ----------
-        model_size : str, optional
-            Model size variant: "tiny", "mini", "small", "base", "large".
-            Default is "tiny" for fast execution.
-        device : str, optional
-            Device to run the model on: "cpu" or "cuda". Default is "cpu".
+        device : str
+            "cpu" or "cuda". Default "cpu".
         """
-        self.model_size = model_size
         self.device = device
         self.pipeline = None
         self.y_train = None
         self._load_pipeline()
 
     def _load_pipeline(self):
-        """Load the Chronos-T5 pipeline from pretrained weights."""
-        model_name = f"amazon/chronos-t5-{self.model_size}"
-        self.pipeline = ChronosPipeline.from_pretrained(
-            model_name,
+        self.pipeline = Chronos2Pipeline.from_pretrained(
+            "amazon/chronos-2",
             device_map=self.device,
-            dtype=torch.float32
+            dtype=torch.bfloat16,
         )
 
     def fit(self, y_train: np.ndarray, **kwargs):
-        """
-        Store training data for Chronos.
-
-        Note: Chronos is a zero-shot forecasting model and doesn't require
-        traditional fitting. This method simply stores the training data
-        for context when forecasting.
-
-        Parameters
-        ----------
-        y_train : np.ndarray
-            Training time series.
-        **kwargs : dict
-            Not used for Chronos.
-        """
+        """Store training context (Chronos-2 is zero-shot)."""
         self.y_train = y_train
 
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
         """
-        Generate multi-step ahead forecasts using Chronos-T5.
-
-        Parameters
-        ----------
-        horizon : int
-            Number of steps ahead to forecast.
-        **kwargs : dict
-            Additional arguments (not used for Chronos).
+        Return point forecast (median) for the next `horizon` steps.
 
         Returns
         -------
-        np.ndarray
-            Point forecasts (median across samples).
-
-        Raises
-        ------
-        ValueError
-            If training data has not been provided via fit().
+        np.ndarray of shape (horizon,)
         """
         if self.y_train is None:
             raise ValueError("Training data required. Call fit() first.")
 
-        # Convert training data to torch tensor
-        context = torch.tensor(self.y_train, dtype=torch.float32)
-
-        # Generate forecast (returns tensor of shape [num_samples, horizon])
-        forecast_samples = self.pipeline.predict(
-            context,  # First positional argument (NOT context=)
-            prediction_length=horizon
+        inputs = [{"target": self.y_train}]
+        quantiles, _ = self.pipeline.predict_quantiles(
+            inputs=inputs,
+            prediction_length=horizon,
+            quantile_levels=[0.5],
+            batch_size=1,
         )
-
-        # Convert to numpy and compute median across samples as point forecast
-        # Shape: (batch, num_samples, horizon) -> (horizon,)
-        forecast_array = forecast_samples.numpy()
-
-        # Remove batch dimension and compute median across samples
-        # Shape: (1, 20, 12) -> (20, 12) -> (12,)
-        forecast_array = forecast_array.squeeze(0)  # Remove batch dimension
-        forecast_median = np.median(forecast_array, axis=0)  # Median across samples
-
-        return forecast_median
+        # quantiles[0] shape: [n_variates, horizon, n_quantiles]
+        return quantiles[0].squeeze().numpy()
 
     @property
     def name(self) -> str:
-        """Return model name."""
-        return f"Chronos-T5-{self.model_size.capitalize()}"
+        return "Chronos-2"

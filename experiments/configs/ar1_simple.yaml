@@ -4,7 +4,7 @@
 
 experiment:
   name: "AR1_Simple_Case"
-  description: "Caso simple de validación: AR(1) vs ARIMA(1,0,0) vs Chronos-T5-Tiny"
+  description: "Caso simple de validación: AR(1) vs ARIMA(1,0,0) vs Chronos-2"
 
 # Data Generating Process
 dgp:
@@ -28,10 +28,9 @@ models:
     params:
       order: [1, 0, 0]
 
-  - name: "Chronos-T5-Tiny"
+  - name: "Chronos-2"
     type: "chronos"
     params:
-      model_size: "tiny"
       device: "cpu"
 
 # Configuración de salida (opcional, para futuras extensiones)
