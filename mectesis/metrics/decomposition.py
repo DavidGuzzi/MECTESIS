@@ -1,5 +1,5 @@
 """
-Bias-Variance-MSE decomposition for forecast evaluation.
+Bias-Variance-MSE-MAE decomposition and interval metrics for forecast evaluation.
 """
 
 import numpy as np
@@ -8,92 +8,89 @@ import pandas as pd
 
 class BiasVarianceMSE:
     """
-    Compute bias-variance decomposition of forecast errors.
+    Compute forecast error metrics from Monte Carlo error matrices.
 
-    This class provides methods to analyze forecast errors from Monte Carlo
-    simulations, decomposing the Mean Squared Error (MSE) into bias and variance
-    components.
+    Supports point metrics (bias, variance, MSE, RMSE, MAE) and
+    prediction interval metrics (coverage and mean width at multiple levels).
     """
 
     @staticmethod
     def compute_from_errors(errors_matrix: np.ndarray) -> dict:
         """
-        Compute bias, variance, MSE, and RMSE from forecast errors.
+        Compute point metrics from forecast errors.
 
         Parameters
         ----------
-        errors_matrix : np.ndarray
-            Matrix of forecast errors with shape (n_sim, horizon),
-            where errors = y_true - y_pred.
+        errors_matrix : np.ndarray, shape (n_sim, horizon)
+            errors = y_true - y_pred
 
         Returns
         -------
-        dict
-            Dictionary with keys:
-            - "bias": np.ndarray of shape (horizon,), mean error at each horizon
-            - "variance": np.ndarray of shape (horizon,), variance of errors
-            - "mse": np.ndarray of shape (horizon,), mean squared error
-            - "rmse": np.ndarray of shape (horizon,), root mean squared error
-
-        Notes
-        -----
-        The bias-variance decomposition states that:
-            MSE = Bias^2 + Variance
-        However, for empirical errors this may not hold exactly due to sampling.
+        dict with keys: bias, variance, mse, rmse, mae (each shape (horizon,))
         """
-        bias = errors_matrix.mean(axis=0)
+        bias     = errors_matrix.mean(axis=0)
         variance = errors_matrix.var(axis=0, ddof=1)
-        mse = (errors_matrix ** 2).mean(axis=0)
-        rmse = np.sqrt(mse)
+        mse      = (errors_matrix ** 2).mean(axis=0)
+        rmse     = np.sqrt(mse)
+        mae      = np.abs(errors_matrix).mean(axis=0)
 
-        return {
-            "bias": bias,
-            "variance": variance,
-            "mse": mse,
-            "rmse": rmse
-        }
+        return {"bias": bias, "variance": variance, "mse": mse, "rmse": rmse, "mae": mae}
 
     @staticmethod
-    def compute_summary_table(errors_matrix: np.ndarray) -> pd.DataFrame:
+    def compute_summary_table(
+        errors_matrix: np.ndarray,
+        coverage_data: dict = None,
+        width_data: dict = None,
+    ) -> pd.DataFrame:
         """
-        Create a summary table of metrics per forecast horizon.
+        Build per-horizon summary table with point and interval metrics.
 
         Parameters
         ----------
-        errors_matrix : np.ndarray
-            Matrix of forecast errors with shape (n_sim, horizon).
+        errors_matrix : np.ndarray, shape (n_sim, horizon)
+        coverage_data : dict, optional
+            {level_int: np.ndarray(n_sim, horizon)} e.g. {80: ..., 95: ...}
+            Each entry is 1 if y_test fell inside the interval, 0 otherwise.
+        width_data : dict, optional
+            {level_int: np.ndarray(n_sim, horizon)}
+            Width of the prediction interval at each simulation and horizon.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with columns: horizon, bias, variance, mse, rmse.
-            Includes a final row with averages across all horizons.
-
-        Examples
-        --------
-        >>> errors = np.random.randn(1000, 12)  # 1000 sims, 12-step horizon
-        >>> table = BiasVarianceMSE.compute_summary_table(errors)
-        >>> print(table)
+        pd.DataFrame with columns:
+            horizon, bias, variance, mse, rmse, mae
+            [, cov_80, width_80, cov_95, width_95]  if interval data provided
         """
         horizon = errors_matrix.shape[1]
-        metrics = BiasVarianceMSE.compute_from_errors(errors_matrix)
+        m = BiasVarianceMSE.compute_from_errors(errors_matrix)
 
-        # Create per-horizon table
-        df = pd.DataFrame({
-            "horizon": np.arange(1, horizon + 1),
-            "bias": metrics["bias"],
-            "variance": metrics["variance"],
-            "mse": metrics["mse"],
-            "rmse": metrics["rmse"]
-        })
+        row_dict = {
+            "horizon":  np.arange(1, horizon + 1),
+            "bias":     m["bias"],
+            "variance": m["variance"],
+            "mse":      m["mse"],
+            "rmse":     m["rmse"],
+            "mae":      m["mae"],
+        }
 
-        # Add aggregated row (average across all horizons)
-        df_agg = pd.DataFrame({
-            "horizon": ["avg_all"],
-            "bias": [metrics["bias"].mean()],
-            "variance": [metrics["variance"].mean()],
-            "mse": [metrics["mse"].mean()],
-            "rmse": [metrics["rmse"].mean()]
-        })
+        agg_dict = {
+            "horizon":  "avg_all",
+            "bias":     m["bias"].mean(),
+            "variance": m["variance"].mean(),
+            "mse":      m["mse"].mean(),
+            "rmse":     m["rmse"].mean(),
+            "mae":      m["mae"].mean(),
+        }
+
+        # Interval columns
+        for prefix, data in [("cov", coverage_data), ("width", width_data)]:
+            if data:
+                for level_key, mat in sorted(data.items()):
+                    col = f"{prefix}_{level_key}"
+                    row_dict[col] = mat.mean(axis=0)
+                    agg_dict[col] = mat.mean()
+
+        df = pd.DataFrame(row_dict)
+        df_agg = pd.DataFrame([agg_dict])
 
         return pd.concat([df, df_agg], ignore_index=True)

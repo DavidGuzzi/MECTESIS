@@ -10,52 +10,50 @@ class BaseModel(ABC):
     """
     Abstract base class for forecasting models.
 
-    All forecasting model implementations must inherit from this class
-    and implement the fit(), forecast(), and name property.
+    Subclasses must implement fit(), forecast(), and name.
+    Subclasses that support prediction intervals should override
+    supports_intervals (return True) and forecast_intervals().
     """
 
     @abstractmethod
     def fit(self, y_train: np.ndarray, **kwargs):
-        """
-        Fit the model to training data.
-
-        Parameters
-        ----------
-        y_train : np.ndarray
-            Training time series of shape (T_train,).
-        **kwargs : dict
-            Model-specific fitting parameters.
-        """
+        """Fit the model to training data of shape (T_train,)."""
         pass
 
     @abstractmethod
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
-        """
-        Generate multi-step ahead forecasts.
-
-        Parameters
-        ----------
-        horizon : int
-            Number of steps ahead to forecast.
-        **kwargs : dict
-            Model-specific forecasting parameters.
-
-        Returns
-        -------
-        np.ndarray
-            Point forecasts of shape (horizon,).
-        """
+        """Return point forecasts of shape (horizon,)."""
         pass
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """
-        Return a descriptive name for the model.
-
-        Returns
-        -------
-        str
-            Model name for reporting and logging.
-        """
+        """Descriptive model name for reporting."""
         pass
+
+    @property
+    def supports_intervals(self) -> bool:
+        """True if this model implements forecast_intervals()."""
+        return False
+
+    def forecast_intervals(
+        self, horizon: int, level: float = 0.95
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Return (lower, upper) prediction interval arrays of shape (horizon,).
+
+        Parameters
+        ----------
+        horizon : int
+        level : float
+            Coverage probability, e.g. 0.80 or 0.95.
+
+        Raises
+        ------
+        NotImplementedError
+            If supports_intervals is False.
+        """
+        raise NotImplementedError(
+            f"{self.name} does not support prediction intervals. "
+            "Override forecast_intervals() and set supports_intervals = True."
+        )

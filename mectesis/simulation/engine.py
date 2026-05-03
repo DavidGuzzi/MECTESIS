@@ -2,9 +2,10 @@
 Monte Carlo simulation engine for forecast comparison.
 """
 
+import time
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any
+from typing import List, Dict, Tuple
 from mectesis.dgp.base import BaseDGP
 from mectesis.models.base import BaseModel
 from mectesis.metrics.decomposition import BiasVarianceMSE
@@ -14,145 +15,127 @@ class MonteCarloEngine:
     """
     Monte Carlo simulation engine for comparing forecast models.
 
-    This class orchestrates the simulation process:
-    1. Generate data from a DGP
-    2. Fit multiple models
-    3. Generate forecasts
-    4. Compute and aggregate forecast errors
+    Supports point metrics (bias, variance, MSE, RMSE, MAE) and
+    prediction interval metrics (coverage and width at specified levels).
     """
 
     def __init__(self, dgp: BaseDGP, models: List[BaseModel], seed: int = None):
-        """
-        Initialize Monte Carlo engine.
-
-        Parameters
-        ----------
-        dgp : BaseDGP
-            Data generating process to simulate from.
-        models : list of BaseModel
-            List of forecasting models to compare.
-        seed : int, optional
-            Random seed for reproducibility.
-        """
         self.dgp = dgp
         self.models = models
-        self.rng = np.random.default_rng(seed)
         self.seed = seed
 
     def run_single_simulation(self, T: int, horizon: int,
                               dgp_params: dict) -> Dict[str, np.ndarray]:
         """
-        Run a single Monte Carlo simulation.
-
-        Parameters
-        ----------
-        T : int
-            Total length of the simulated series.
-        horizon : int
-            Forecast horizon.
-        dgp_params : dict
-            Parameters for the DGP simulation (e.g., phi, mu, sigma).
-
-        Returns
-        -------
-        dict
-            Dictionary with model names as keys and forecast errors as values.
-            Each error array has shape (horizon,).
-
-        Notes
-        -----
-        The series is split into:
-        - Training: first (T - horizon) observations
-        - Test: last horizon observations
+        Run one replication. Returns {model_name: error_array(horizon,)}.
+        Kept for backward compatibility; run_monte_carlo uses inlined logic.
         """
-        # Simulate series from DGP
         y = self.dgp.simulate(T=T, **dgp_params)
-
-        # Split train/test
         T_train = T - horizon
-        y_train = y[:T_train]
-        y_test = y[T_train:]
-        assert len(y_test) == horizon, f"Expected {horizon} test obs, got {len(y_test)}"
+        y_train, y_test = y[:T_train], y[T_train:]
+        assert len(y_test) == horizon
 
-        # Generate forecasts and compute errors for each model
         errors = {}
         for model in self.models:
-            # Fit model
             model.fit(y_train)
-
-            # Forecast
             y_hat = model.forecast(horizon)
-
-            # Compute errors (actual - predicted)
             errors[model.name] = y_test - y_hat
-
         return errors
 
-    def run_monte_carlo(self, n_sim: int, T: int, horizon: int,
-                        dgp_params: dict, verbose: bool = True) -> Dict[str, pd.DataFrame]:
+    def run_monte_carlo(
+        self,
+        n_sim: int,
+        T: int,
+        horizon: int,
+        dgp_params: dict,
+        levels: Tuple[float, ...] = (0.80, 0.95),
+        verbose: bool = True,
+    ) -> Dict[str, pd.DataFrame]:
         """
-        Run Monte Carlo simulations and aggregate results.
+        Run n_sim Monte Carlo replications and return aggregated metrics.
 
         Parameters
         ----------
         n_sim : int
-            Number of Monte Carlo replications.
         T : int
-            Length of each simulated series.
         horizon : int
-            Forecast horizon.
         dgp_params : dict
-            Parameters for the DGP.
-        verbose : bool, optional
-            If True, print progress messages. Default is True.
+        levels : tuple of float
+            Prediction interval levels, e.g. (0.80, 0.95).
+        verbose : bool
+            Print progress with timing.
 
         Returns
         -------
-        dict
-            Dictionary with model names as keys and DataFrames as values.
-            Each DataFrame contains bias, variance, MSE, RMSE metrics
-            per horizon, plus an aggregated row.
-
-        Examples
-        --------
-        >>> from mectesis.dgp import AR1
-        >>> from mectesis.models import ARIMAModel
-        >>> dgp = AR1(seed=123)
-        >>> models = [ARIMAModel(order=(1,0,0))]
-        >>> engine = MonteCarloEngine(dgp, models, seed=123)
-        >>> results = engine.run_monte_carlo(
-        ...     n_sim=100, T=200, horizon=12,
-        ...     dgp_params={"phi": 0.7, "mu": 0.0, "sigma": 1.0}
-        ... )
+        dict {model_name: DataFrame}
+            Columns: horizon, bias, variance, mse, rmse, mae
+                     [, cov_80, width_80, cov_95, width_95] if supported.
+            One row per horizon step (1..H) plus an "avg_all" summary row.
         """
+        models_iv = [m for m in self.models if m.supports_intervals]
+        level_keys = [int(l * 100) for l in levels]
+
         if verbose:
-            print(f"Running {n_sim} Monte Carlo simulations...")
-            print(f"  DGP: {self.dgp.__class__.__name__}")
-            print(f"  Models: {[m.name for m in self.models]}")
-            print(f"  T={T}, horizon={horizon}")
-            print(f"  DGP params: {dgp_params}")
+            iv_names = [m.name for m in models_iv] or ["ninguno"]
+            print(f"  {n_sim} reps | T={T} | h=1–{horizon} | "
+                  f"modelos: {[m.name for m in self.models]}")
+            print(f"  Intervalos ({level_keys}%): {iv_names}")
 
-        # Initialize error matrices: {model_name: np.ndarray of shape (n_sim, horizon)}
-        error_matrices = {model.name: np.empty((n_sim, horizon)) for model in self.models}
+        # ── Allocate matrices ──────────────────────────────────────────────
+        error_mats = {m.name: np.empty((n_sim, horizon)) for m in self.models}
+        cov_mats = {
+            m.name: {lk: np.empty((n_sim, horizon)) for lk in level_keys}
+            for m in models_iv
+        }
+        wid_mats = {
+            m.name: {lk: np.empty((n_sim, horizon)) for lk in level_keys}
+            for m in models_iv
+        }
 
-        # Run simulations
+        # ── Simulation loop ────────────────────────────────────────────────
+        t_start = time.time()
+        log_every = max(1, n_sim // 10)
+
         for s in range(n_sim):
-            if verbose and (s + 1) % max(1, n_sim // 10) == 0:
-                print(f"  Progress: {s+1}/{n_sim} simulations completed")
+            y = self.dgp.simulate(T=T, **dgp_params)
+            y_train, y_test = y[:T - horizon], y[T - horizon:]
 
-            # Run single simulation
-            errors = self.run_single_simulation(T, horizon, dgp_params)
+            for model in self.models:
+                model.fit(y_train)
+                y_hat = model.forecast(horizon)
+                error_mats[model.name][s] = y_test - y_hat
 
-            # Store errors
-            for model_name, error_vec in errors.items():
-                error_matrices[model_name][s] = error_vec
+                if model in models_iv:
+                    for level, lk in zip(levels, level_keys):
+                        lo, hi = model.forecast_intervals(horizon, level=level)
+                        cov_mats[model.name][lk][s] = (y_test >= lo) & (y_test <= hi)
+                        wid_mats[model.name][lk][s] = hi - lo
 
-        # Compute metrics for each model
-        results = {}
-        for model_name, errors_matrix in error_matrices.items():
-            results[model_name] = BiasVarianceMSE.compute_summary_table(errors_matrix)
+            if verbose and (s + 1) % log_every == 0:
+                elapsed = time.time() - t_start
+                rate = (s + 1) / elapsed
+                eta = (n_sim - s - 1) / rate
+                print(f"    [{s+1:>{len(str(n_sim))}}/{n_sim}] "
+                      f"{elapsed:5.0f}s transcurridos  "
+                      f"ETA ~{eta:.0f}s")
 
         if verbose:
-            print(f"✓ Simulations completed!")
+            print(f"  ✓ Completado en {time.time() - t_start:.1f}s")
+
+        # ── Aggregate metrics ──────────────────────────────────────────────
+        results = {}
+        for model in self.models:
+            mname = model.name
+            if model in models_iv:
+                cov_d = {lk: cov_mats[mname][lk] for lk in level_keys}
+                wid_d = {lk: wid_mats[mname][lk] for lk in level_keys}
+            else:
+                cov_d, wid_d = None, None
+
+            results[mname] = BiasVarianceMSE.compute_summary_table(
+                error_mats[mname],
+                coverage_data=cov_d,
+                width_data=wid_d,
+            )
 
         return results

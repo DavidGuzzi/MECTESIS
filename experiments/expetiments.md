@@ -42,13 +42,13 @@
 
 | Exp | DGP | Modelos Clásicos (Core) | Modelos Clásicos (Adicionales) |
 |-----|-----|-------------------------|---------------------------------|
-| **1.1 AR(1) baja persistencia** | $Y_t = 0.3\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive; Drift | ETS(A,N,N); Theta |
-| **1.2 AR(1) alta persistencia** | $Y_t = 0.9\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0); Naive | ETS(A,A,N); Theta |
-| **1.3 RW I(1) sin drift** | $Y_t = Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
-| **1.4 RW I(1) con drift** | $Y_t = 0.5 + Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0); Drift | ETS(A,A,N); Theta |
+| **1.1 AR(1) baja persistencia** | $Y_t = 0.3\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0) | ETS(A,N,N); Theta; Naive; Drift |
+| **1.2 AR(1) alta persistencia** | $Y_t = 0.9\,Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0) | ETS(A,A,N); Theta; Naive |
+| **1.3 RW I(1) sin drift** | $Y_t = Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0) | ETS(A,A,N); Theta; Drift |
+| **1.4 RW I(1) con drift** | $Y_t = 0.5 + Y_{t-1} + \varepsilon_t$ | ARIMA(0,1,0) | ETS(A,A,N); Theta; Drift |
 | **1.5 AR(1) + tendencia** | $Y_t = 5 + 0.1t + 0.6Y_{t-1} + \varepsilon_t$ | ARIMA(1,0,0)+trend | Holt–Winters; ETS; Theta |
-| **1.6 SARIMA trimestral (s=4)** | $(1-\phi L)(1-\Phi L^4)Y_t=\varepsilon_t$ | SARIMA(1,0,0)(1,0,0)\_{4}; Seasonal Naive | ETS(A,A,A) |
-| **1.7 SARIMA mensual (s=12)** | $(1-L)(1-L^{12})Y_t=\varepsilon_t$ | SARIMA estacional; Seasonal Naive | Holt–Winters multiplicativo; ETS |
+| **1.6 SARIMA trimestral (s=4)** | $(1-\phi L)(1-\Phi L^4)Y_t=\varepsilon_t$ | SARIMA(1,0,0)(1,0,0)\_{4} | ETS(A,A,A); Seasonal Naive |
+| **1.7 SARIMA mensual (s=12)** | $(1-L)(1-L^{12})Y_t=\varepsilon_t$ | SARIMA estacional | Holt–Winters multiplicativo; ETS; Seasonal Naive |
 | **1.8 AR(1) con quiebre** | $Y_t=0.3Y_{t-1}+\varepsilon_t$ para $t\le T/2$; $Y_t=0.8Y_{t-1}+\varepsilon_t$ para $t>T/2$ | ARIMA(1,0,0) con dummy de quiebre | ARIMA(1,0,0) sin quiebre; ETS |
 | **1.9 AR(1)–GARCH(1,1)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; Varianza cond.: $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \beta\,\sigma_{t-1}^2$ con $\alpha,\beta>0$ y $\alpha+\beta<1$ | ARIMA(1,0,0) + GARCH(1,1) (modelo de media y varianza conjunta) | ARIMA(1,0,0) con varianza homocedástica (modelo mal especificado para comparar impacto de ignorar GARCH) |
 | **1.10 GARCH(1,1) con media cero** | $Y_t = \sigma_t \varepsilon_t$, $\varepsilon_t\sim N(0,1)$, $\sigma_t^2 = \omega + \alpha\,Y_{t-1}^2 + \beta\,\sigma_{t-1}^2$ | GARCH(1,1) (modelo puro de volatilidad); Naive sobre niveles para contraste | ARIMA(0,0,0) con varianza constante (para estudiar fallas de modelos clásicos al ignorar volatilidad condicional) |

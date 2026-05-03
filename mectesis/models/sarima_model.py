@@ -12,23 +12,13 @@ class SARIMAModel(BaseModel):
     """
     SARIMA(p,d,q)(P,D,Q)_s model using statsmodels SARIMAX.
 
-    Covers Exp 1.6: SARIMAModel(order=(1,0,0), seasonal_order=(1,0,0,4))
-    Covers Exp 1.7: SARIMAModel(order=(0,1,0), seasonal_order=(0,1,0,12))
+    Exp 1.6: SARIMAModel(order=(1,0,0), seasonal_order=(1,0,0,4))
+    Exp 1.7: SARIMAModel(order=(0,1,0), seasonal_order=(0,1,0,12))
     """
 
     def __init__(self, order: tuple = (1, 0, 0),
                  seasonal_order: tuple = (1, 0, 0, 4),
                  trend: str = None):
-        """
-        Parameters
-        ----------
-        order : tuple
-            ARIMA order (p, d, q).
-        seasonal_order : tuple
-            Seasonal order (P, D, Q, s).
-        trend : str, optional
-            Trend specification passed to SARIMAX. Default is None.
-        """
         self.order = order
         self.seasonal_order = seasonal_order
         self.trend = trend
@@ -49,9 +39,20 @@ class SARIMAModel(BaseModel):
 
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
         if self.fitted_model is None:
-            raise ValueError("Model must be fitted before forecasting.")
-        fcst = self.fitted_model.forecast(steps=horizon)
-        return np.array(fcst)
+            raise ValueError("Call fit() before forecast().")
+        return np.array(self.fitted_model.forecast(steps=horizon))
+
+    @property
+    def supports_intervals(self) -> bool:
+        return True
+
+    def forecast_intervals(self, horizon: int, level: float = 0.95):
+        if self.fitted_model is None:
+            raise ValueError("Call fit() before forecast_intervals().")
+        alpha = 1.0 - level
+        fcst = self.fitted_model.get_forecast(steps=horizon)
+        ci = np.asarray(fcst.conf_int(alpha=alpha))
+        return ci[:, 0], ci[:, 1]
 
     @property
     def name(self) -> str:
