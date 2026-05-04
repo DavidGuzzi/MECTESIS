@@ -22,9 +22,9 @@
 | Bloques de evaluación | Corto plazo: h = 1,…,12; mediano plazo: h = 13,…,24 |
 | Repeticiones Monte Carlo | R = 500 como base; R = 1000 para robustez |
 | Semilla | 03649 |
-| DGPs univariados | 11 |
-| Series simuladas con R = 500 | 11 × 2 × 500 = 11.000 |
-| Series simuladas con R = 1000 | 11 × 2 × 1000 = 22.000 |
+| DGPs univariados | 19 |
+| Series simuladas con R = 500 | 19 × 2 × 500 = 19.000 |
+| Series simuladas con R = 1000 | 19 × 2 × 1000 = 38.000 |
 | Modelos clásicos | Solo modelos core por experimento |
 | TSFM principal | Chronos-2 |
 | TSFM ampliados | TimesFM-2.5, Moirai-2.0, TimeGPT-1 |
@@ -50,9 +50,17 @@
 | **1.6 SARIMA trimestral (s=4)** | $(1-\phi L)(1-\Phi L^4)Y_t=\varepsilon_t$ | SARIMA(1,0,0)(1,0,0)\_{4} | ETS(A,A,A); Seasonal Naive |
 | **1.7 SARIMA mensual (s=12)** | $(1-L)(1-L^{12})Y_t=\varepsilon_t$ | SARIMA estacional | Holt–Winters multiplicativo; ETS; Seasonal Naive |
 | **1.8 AR(1) con quiebre** | $Y_t=0.3Y_{t-1}+\varepsilon_t$ para $t\le T/2$; $Y_t=0.8Y_{t-1}+\varepsilon_t$ para $t>T/2$ | ARIMA(1,0,0) con dummy de quiebre | ARIMA(1,0,0) sin quiebre; ETS |
-| **1.9 AR(1)–GARCH(1,1)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; Varianza cond.: $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \beta\,\sigma_{t-1}^2$ con $\alpha,\beta>0$ y $\alpha+\beta<1$ | ARIMA(1,0,0) + GARCH(1,1) (modelo de media y varianza conjunta) | ARIMA(1,0,0) con varianza homocedástica (modelo mal especificado para comparar impacto de ignorar GARCH) |
-| **1.10 GARCH(1,1) con media cero** | $Y_t = \sigma_t \varepsilon_t$, $\varepsilon_t\sim N(0,1)$, $\sigma_t^2 = \omega + \alpha\,Y_{t-1}^2 + \beta\,\sigma_{t-1}^2$ | GARCH(1,1) (modelo puro de volatilidad); Naive sobre niveles para contraste | ARIMA(0,0,0) con varianza constante (para estudiar fallas de modelos clásicos al ignorar volatilidad condicional) |
-| **1.11 AR(1)–GJR–GARCH (asimetría)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$; $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \gamma\,\varepsilon_{t-1}^2\mathbf{1}\{\varepsilon_{t-1}<0\} + \beta\,\sigma_{t-1}^2$ | AR(1) + GJR–GARCH (para capturar efectos de “leverage”) | AR(1)+GARCH(1,1) estándar (sin término asimétrico) para ver pérdida de capacidad al ignorar asimetría |
+| **1.9 AR(1)–ARCH(1)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$; Varianza cond.: $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2$ | ARIMA(1,0,0) + ARCH(1) | ARIMA(1,0,0) con varianza homocedástica (ignora volatilidad condicional) |
+| **1.10 AR(1)–GARCH(1,1)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; Varianza cond.: $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \beta\,\sigma_{t-1}^2$ con $\alpha,\beta>0$ y $\alpha+\beta<1$ | ARIMA(1,0,0) + GARCH(1,1) | ARIMA(1,0,0) con varianza homocedástica (ignora volatilidad condicional) |
+| **1.11 GARCH(1,1) con media cero** | $Y_t = \sigma_t \varepsilon_t$, $\varepsilon_t\sim N(0,1)$; $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \beta\,\sigma_{t-1}^2$ | GARCH(1,1) | ARIMA(0,0,0) con varianza constante (ignora heterocedasticidad) |
+| **1.12 AR(1)–GJR–GARCH (asimetría)** | Media: $Y_t = 0.3Y_{t-1} + \varepsilon_t$; $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$; $\sigma_t^2 = \omega + \alpha\,\varepsilon_{t-1}^2 + \gamma\,\varepsilon_{t-1}^2\mathbf{1}\{\varepsilon_{t-1}<0\} + \beta\,\sigma_{t-1}^2$ | ARIMA(1,0,0) + GJR–GARCH | ARIMA(1,0,0) + GARCH(1,1) (ignora asimetría) |
+| **1.13 Nivel local (local level)** | $\ell_t = \ell_{t-1} + \eta_t$, $Y_t = \ell_t + \varepsilon_t$; $\eta_t\sim N(0,\sigma_\eta^2)$, $\varepsilon_t\sim N(0,\sigma_\varepsilon^2)$ | ETS(A,N,N) | ARIMA(0,1,1) (equivalente teórico); Naive |
+| **1.14 Tendencia local (local trend / LLT)** | $\ell_t = \ell_{t-1} + b_{t-1} + \eta_t$, $b_t = b_{t-1} + \zeta_t$; $\eta_t\sim N(0,\sigma_\eta^2)$, $\zeta_t\sim N(0,\sigma_\zeta^2)$ | ETS(A,A,N) | Holt lineal; ARIMA(0,2,2) (equivalente teórico) |
+| **1.15 Tendencia amortiguada (damped trend)** | $\ell_t = \ell_{t-1} + \phi b_{t-1} + \eta_t$, $b_t = \phi b_{t-1} + \zeta_t$, $\phi = 0.9$ | ETS(A,Ad,N) | ETS(A,A,N) (sin amortiguamiento) |
+| **1.16 Estacionalidad determinística (s=12)** | $Y_t = \mu + s_{t \bmod 12} + \varepsilon_t$, $\sum_{j=0}^{11} s_j = 0$, $s_t = s_{t-12}$ | Seasonal Naive (s=12) | SARIMA(0,0,0)(0,0,0)\_12 con dummies estacionales |
+| **1.17 Seasonal random walk (s=12)** | $Y_t = Y_{t-12} + \varepsilon_t$, $\varepsilon_t\sim N(0,\sigma^2)$ | Seasonal Naive (s=12) | SARIMA(0,0,0)(0,1,0)\_12 (equivalente teórico) |
+| **1.18 Trend + estacionalidad – ETS(A,A,A)** | $\ell_t = \ell_{t-1} + b_{t-1} + \eta_t$, $b_t = b_{t-1} + \zeta_t$, $\gamma_t = \gamma_{t-12} + \omega_t$, $Y_t = \ell_t + \gamma_t + \varepsilon_t$ | ETS(A,A,A) | Holt–Winters aditivo; SARIMA con tendencia |
+| **1.19 Tendencia lineal pura (Theta-type)** | $Y_t = 0.1t + \varepsilon_t$, $\varepsilon_t\sim N(0,1)$ | Theta | ETS(A,A,N); ARIMA(0,1,1)+drift; Drift |
 
 ---
 

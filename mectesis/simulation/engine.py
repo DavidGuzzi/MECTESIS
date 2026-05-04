@@ -73,6 +73,7 @@ class MonteCarloEngine:
             One row per horizon step (1..H) plus an "avg_all" summary row.
         """
         models_iv = [m for m in self.models if m.supports_intervals]
+        models_crps = [m for m in self.models if m.supports_crps]
         level_keys = [int(l * 100) for l in levels]
 
         if verbose:
@@ -90,6 +91,13 @@ class MonteCarloEngine:
         wid_mats = {
             m.name: {lk: np.empty((n_sim, horizon)) for lk in level_keys}
             for m in models_iv
+        }
+        winkler_mats = {
+            m.name: {lk: np.empty((n_sim, horizon)) for lk in level_keys}
+            for m in models_iv
+        }
+        crps_mats = {
+            m.name: np.empty((n_sim, horizon)) for m in models_crps
         }
 
         # ── Simulation loop ────────────────────────────────────────────────
@@ -110,6 +118,16 @@ class MonteCarloEngine:
                         lo, hi = model.forecast_intervals(horizon, level=level)
                         cov_mats[model.name][lk][s] = (y_test >= lo) & (y_test <= hi)
                         wid_mats[model.name][lk][s] = hi - lo
+                        alpha = 1.0 - level
+                        penalty = 2.0 / alpha
+                        winkler_mats[model.name][lk][s] = (
+                            (hi - lo)
+                            + penalty * np.maximum(lo - y_test, 0.0)
+                            + penalty * np.maximum(y_test - hi, 0.0)
+                        )
+
+                if model in models_crps:
+                    crps_mats[model.name][s] = model.compute_crps(y_test, horizon)
 
             if verbose and (s + 1) % log_every == 0:
                 elapsed = time.time() - t_start
@@ -129,13 +147,18 @@ class MonteCarloEngine:
             if model in models_iv:
                 cov_d = {lk: cov_mats[mname][lk] for lk in level_keys}
                 wid_d = {lk: wid_mats[mname][lk] for lk in level_keys}
+                winkler_d = {lk: winkler_mats[mname][lk] for lk in level_keys}
             else:
-                cov_d, wid_d = None, None
+                cov_d, wid_d, winkler_d = None, None, None
+
+            crps_d = crps_mats[mname] if model in models_crps else None
 
             results[mname] = BiasVarianceMSE.compute_summary_table(
                 error_mats[mname],
                 coverage_data=cov_d,
                 width_data=wid_d,
+                winkler_data=winkler_d,
+                crps_data=crps_d,
             )
 
         return results

@@ -57,3 +57,22 @@ class BaseModel(ABC):
             f"{self.name} does not support prediction intervals. "
             "Override forecast_intervals() and set supports_intervals = True."
         )
+
+    @property
+    def supports_crps(self) -> bool:
+        """True if this model implements compute_crps()."""
+        return False
+
+    def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        """
+        Return CRPS scores of shape (horizon,) for the predictive distribution.
+
+        Raises
+        ------
+        NotImplementedError
+            If supports_crps is False.
+        """
+        raise NotImplementedError(
+            f"{self.name} does not support CRPS. "
+            "Override compute_crps() and set supports_crps = True."
+        )

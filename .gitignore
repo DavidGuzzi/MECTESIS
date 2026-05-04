@@ -30,3 +30,6 @@ experiments/expetiments_w_lib.md
 /.venv_mectesis
 /mectesis.egg-info
 /entrega
+notebooks/experimentos_univariados copy.ipynb
+notebooks/experimentos_univariados_v2.ipynb
+scripts/gen_notebook_v2.py

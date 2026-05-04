@@ -23,16 +23,21 @@ class ARIMAWithTrendModel(BaseModel):
         self.fitted_model = None
 
     def fit(self, y_train: np.ndarray, **kwargs):
+        self._fcst_cache = {}
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             model = ARIMA(y_train, order=self.order, trend=self.trend)
             self.fitted_model = model.fit(**kwargs)
 
+    def _get_forecast(self, horizon: int):
+        if horizon not in self._fcst_cache:
+            self._fcst_cache[horizon] = self.fitted_model.get_forecast(steps=horizon)
+        return self._fcst_cache[horizon]
+
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
         if self.fitted_model is None:
             raise ValueError("Call fit() before forecast().")
-        fcst = self.fitted_model.get_forecast(steps=horizon)
-        return np.array(fcst.predicted_mean)
+        return np.array(self._get_forecast(horizon).predicted_mean)
 
     @property
     def supports_intervals(self) -> bool:
@@ -42,9 +47,19 @@ class ARIMAWithTrendModel(BaseModel):
         if self.fitted_model is None:
             raise ValueError("Call fit() before forecast_intervals().")
         alpha = 1.0 - level
-        fcst = self.fitted_model.get_forecast(steps=horizon)
-        ci = np.asarray(fcst.conf_int(alpha=alpha))
+        ci = np.asarray(self._get_forecast(horizon).conf_int(alpha=alpha))
         return ci[:, 0], ci[:, 1]
+
+    @property
+    def supports_crps(self) -> bool:
+        return True
+
+    def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        from properscoring import crps_gaussian
+        fcst = self._get_forecast(horizon)
+        mu = np.array(fcst.predicted_mean)
+        sigma = np.maximum(np.array(fcst.se_mean), 1e-8)
+        return crps_gaussian(y_true, mu, sigma)
 
     @property
     def name(self) -> str:
@@ -69,6 +84,7 @@ class ARIMAWithBreakModel(BaseModel):
         self.fitted_model = None
 
     def fit(self, y_train: np.ndarray, **kwargs):
+        self._fcst_cache = {}
         n = len(y_train)
         break_exog = (np.arange(n) >= self.break_idx).astype(float).reshape(-1, 1)
         with warnings.catch_warnings():
@@ -82,11 +98,17 @@ class ARIMAWithBreakModel(BaseModel):
             )
             self.fitted_model = model.fit(disp=False, **kwargs)
 
+    def _get_forecast(self, horizon: int):
+        if horizon not in self._fcst_cache:
+            exog_future = np.ones((horizon, 1))
+            self._fcst_cache[horizon] = self.fitted_model.get_forecast(
+                steps=horizon, exog=exog_future)
+        return self._fcst_cache[horizon]
+
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
         if self.fitted_model is None:
             raise ValueError("Call fit() before forecast().")
-        exog_future = np.ones((horizon, 1))
-        return np.array(self.fitted_model.forecast(steps=horizon, exog=exog_future))
+        return np.array(self._get_forecast(horizon).predicted_mean)
 
     @property
     def supports_intervals(self) -> bool:
@@ -96,10 +118,19 @@ class ARIMAWithBreakModel(BaseModel):
         if self.fitted_model is None:
             raise ValueError("Call fit() before forecast_intervals().")
         alpha = 1.0 - level
-        exog_future = np.ones((horizon, 1))
-        fcst = self.fitted_model.get_forecast(steps=horizon, exog=exog_future)
-        ci = np.asarray(fcst.conf_int(alpha=alpha))
+        ci = np.asarray(self._get_forecast(horizon).conf_int(alpha=alpha))
         return ci[:, 0], ci[:, 1]
+
+    @property
+    def supports_crps(self) -> bool:
+        return True
+
+    def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        from properscoring import crps_gaussian
+        fcst = self._get_forecast(horizon)
+        mu = np.array(fcst.predicted_mean)
+        sigma = np.maximum(np.array(fcst.se_mean), 1e-8)
+        return crps_gaussian(y_true, mu, sigma)
 
     @property
     def name(self) -> str:

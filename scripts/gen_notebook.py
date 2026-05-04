@@ -25,10 +25,11 @@ def code(source):
 
 # ─── Cell 0: Title ────────────────────────────────────────────────────────────
 c0 = md(
-    "# Experimentos Univariados 1.1–1.8\n\n"
+    "# Experimentos Univariados 1.1–1.19\n\n"
     "**Tesis MEC** — Comparación TSFMs vs Modelos Clásicos bajo DGPs controlados  \n"
     "**Setup:** T ∈ {200, 1000} | H = 24 | R_LIST = [500] | Semilla = 3649  \n"
-    "**Métricas:** Bias, Varianza, MSE, RMSE, MAE, Cobertura 80%/95%, Amplitud 80%/95%  \n"
+    "**Métricas punto:** Bias, Varianza, MSE, RMSE, MAE  \n"
+    "**Métricas probabilísticas:** CRPS, Cobertura 80%/95%, Amplitud 80%/95%, Winkler Score 80%/95%  \n"
     "**Resultados:** guardados en `results/univariate/` — si existen se cargan sin re-simular\n\n"
     "---"
 )
@@ -45,10 +46,17 @@ c1 = code(
     "from pathlib import Path\n"
     "from IPython.display import display\n"
     "\n"
-    "from mectesis.dgp import AR1, RandomWalk, AR1WithTrend, SeasonalDGP, AR1WithBreak\n"
+    "from mectesis.dgp import (\n"
+    "    AR1, RandomWalk, AR1WithTrend, SeasonalDGP, AR1WithBreak,\n"
+    "    AR1ARCH, AR1GARCH, PureGARCH, AR1GJRGARCH,\n"
+    "    LocalLevelDGP, LocalTrendDGP, DampedTrendDGP,\n"
+    "    DeterministicSeasonalDGP, SeasonalRandomWalkDGP, LocalLevelSeasonalDGP,\n"
+    ")\n"
     "from mectesis.models import (\n"
     "    ARIMAModel, ChronosModel,\n"
     "    SARIMAModel, ARIMAWithTrendModel, ARIMAWithBreakModel,\n"
+    "    ARARCHModel, ARGARCHModel, GARCHModel, ARGJRGARCHModel,\n"
+    "    SeasonalNaiveModel, ETSModel, ThetaModel,\n"
     ")\n"
     "from mectesis.simulation import MonteCarloEngine\n"
     "\n"
@@ -247,6 +255,7 @@ EXPS = [
             "**Core:** ARIMA(1,0,0), Chronos-2  \n"
             "**Adicionales (no implementados aquí):** ETS(A,N,N), Theta, Naive, Drift"
         ),
+        "AR(1) baja persistencia",
     ),
     (
         "1.2",
@@ -258,6 +267,7 @@ EXPS = [
             "**Core:** ARIMA(1,0,0), Chronos-2  \n"
             "**Adicionales:** ETS(A,A,N), Theta, Naive"
         ),
+        "AR(1) alta persistencia",
     ),
     (
         "1.3",
@@ -269,6 +279,7 @@ EXPS = [
             "**Core:** ARIMA(0,1,0), Chronos-2  \n"
             "**Adicionales:** ETS(A,A,N), Theta, Drift"
         ),
+        "Random Walk sin drift",
     ),
     (
         "1.4",
@@ -280,6 +291,7 @@ EXPS = [
             "**Core:** ARIMA(0,1,0), Chronos-2  \n"
             "**Adicionales:** ETS(A,A,N), Theta, Drift"
         ),
+        "Random Walk con drift",
     ),
     (
         "1.5",
@@ -291,6 +303,7 @@ EXPS = [
             "**Core:** ARIMA(1,0,0)+trend (trend='ct'), Chronos-2  \n"
             "**Adicionales:** Holt-Winters, ETS, Theta"
         ),
+        "AR(1) con tendencia",
     ),
     (
         "1.6",
@@ -302,6 +315,7 @@ EXPS = [
             "**Core:** SARIMA(1,0,0)(1,0,0)_4, Chronos-2  \n"
             "**Adicionales:** ETS(A,A,A), Seasonal Naive"
         ),
+        "SARIMA trimestral (s=4)",
     ),
     (
         "1.7",
@@ -313,6 +327,7 @@ EXPS = [
             "**Core:** SARIMA(0,1,0)(0,1,0)_12, Chronos-2  \n"
             "**Adicionales:** Holt-Winters multiplicativo, ETS, Seasonal Naive"
         ),
+        "SARIMA mensual (s=12)",
     ),
     (
         "1.8",
@@ -324,12 +339,145 @@ EXPS = [
             "**Core:** ARIMA(1,0,0)+break (dummy exógena), Chronos-2  \n"
             "**Adicionales:** ARIMA(1,0,0) sin quiebre, ETS"
         ),
+        "AR(1) con quiebre estructural",
+    ),
+    (
+        "1.9",
+        "AR1ARCH",
+        {"phi": 0.3, "omega": 0.1, "alpha": 0.3},
+        "lambda T: [ARARCHModel(), chronos]",
+        (
+            "**DGP:** AR(1)–ARCH(1) — $Y_t = 0.3Y_{t-1} + \\varepsilon_t$; "
+            "$\\sigma_t^2 = 0.1 + 0.3\\,\\varepsilon_{t-1}^2$  \n"
+            "**Core:** AR(1)+ARCH(1), Chronos-2"
+        ),
+        "AR(1)–ARCH(1)",
+    ),
+    (
+        "1.10",
+        "AR1GARCH",
+        {"phi": 0.3, "omega": 0.1, "alpha": 0.1, "beta": 0.8},
+        "lambda T: [ARGARCHModel(), chronos]",
+        (
+            "**DGP:** AR(1)–GARCH(1,1) — $Y_t = 0.3Y_{t-1} + \\varepsilon_t$; "
+            "$\\sigma_t^2 = 0.1 + 0.1\\,\\varepsilon_{t-1}^2 + 0.8\\,\\sigma_{t-1}^2$  \n"
+            "**Core:** AR(1)+GARCH(1,1), Chronos-2"
+        ),
+        "AR(1)–GARCH(1,1)",
+    ),
+    (
+        "1.11",
+        "PureGARCH",
+        {"omega": 0.1, "alpha": 0.1, "beta": 0.8},
+        "lambda T: [GARCHModel(), chronos]",
+        (
+            "**DGP:** GARCH(1,1) media cero — $Y_t = \\sigma_t z_t$; "
+            "$\\sigma_t^2 = 0.1 + 0.1\\,Y_{t-1}^2 + 0.8\\,\\sigma_{t-1}^2$  \n"
+            "**Core:** GARCH(1,1) media cero, Chronos-2"
+        ),
+        "GARCH(1,1) media cero",
+    ),
+    (
+        "1.12",
+        "AR1GJRGARCH",
+        {"phi": 0.3, "omega": 0.1, "alpha": 0.05, "gamma": 0.1, "beta": 0.8},
+        "lambda T: [ARGJRGARCHModel(), chronos]",
+        (
+            "**DGP:** AR(1)–GJR–GARCH — $\\sigma_t^2 = 0.1 + 0.05\\,\\varepsilon_{t-1}^2 "
+            "+ 0.1\\,\\varepsilon_{t-1}^2\\mathbf{1}\\{\\varepsilon_{t-1}<0\\} "
+            "+ 0.8\\,\\sigma_{t-1}^2$  \n"
+            "**Core:** AR(1)+GJR-GARCH(1,1,1), Chronos-2"
+        ),
+        "AR(1)–GJR–GARCH",
+    ),
+    (
+        "1.13",
+        "LocalLevelDGP",
+        {},
+        "lambda T: [ETSModel(trend=None), chronos]",
+        (
+            "**DGP:** Nivel local — $\\ell_t = \\ell_{t-1} + \\eta_t$, "
+            "$Y_t = \\ell_t + \\varepsilon_t$  \n"
+            "**Core:** ETS(A,N,N), Chronos-2"
+        ),
+        "Local level — ETS(A,N,N)",
+    ),
+    (
+        "1.14",
+        "LocalTrendDGP",
+        {},
+        "lambda T: [ETSModel(trend='add'), chronos]",
+        (
+            "**DGP:** Tendencia local (LLT) — $\\ell_t = \\ell_{t-1} + b_{t-1} + \\eta_t$, "
+            "$b_t = b_{t-1} + \\zeta_t$  \n"
+            "**Core:** ETS(A,A,N), Chronos-2"
+        ),
+        "Local trend — ETS(A,A,N)",
+    ),
+    (
+        "1.15",
+        "DampedTrendDGP",
+        {"phi": 0.9},
+        "lambda T: [ETSModel(trend='add', damped_trend=True), chronos]",
+        (
+            "**DGP:** Tendencia amortiguada — "
+            "$\\ell_t = \\ell_{t-1} + \\phi b_{t-1} + \\eta_t$, "
+            "$b_t = \\phi b_{t-1} + \\zeta_t$ ($\\phi=0.9$)  \n"
+            "**Core:** ETS(A,Ad,N), Chronos-2"
+        ),
+        "Damped trend — ETS(A,Ad,N)",
+    ),
+    (
+        "1.16",
+        "DeterministicSeasonalDGP",
+        {"mu": 5.0, "sigma_eps": 1.0, "s": 12},
+        "lambda T: [SeasonalNaiveModel(period=12), chronos]",
+        (
+            "**DGP:** Estacionalidad determinística pura (s=12) — "
+            "$Y_t = \\mu + s_t + \\varepsilon_t$, $s_t = s_{t-12}$  \n"
+            "**Core:** Seasonal Naive (s=12), Chronos-2"
+        ),
+        "Estacionalidad determinística (s=12)",
+    ),
+    (
+        "1.17",
+        "SeasonalRandomWalkDGP",
+        {"s": 12, "sigma": 1.0},
+        "lambda T: [SeasonalNaiveModel(period=12), chronos]",
+        (
+            "**DGP:** Seasonal random walk (s=12) — $Y_t = Y_{t-12} + \\varepsilon_t$  \n"
+            "**Core:** Seasonal Naive (s=12), Chronos-2"
+        ),
+        "Seasonal random walk (s=12)",
+    ),
+    (
+        "1.18",
+        "LocalLevelSeasonalDGP",
+        {},
+        "lambda T: [ETSModel(trend='add', seasonal='add', seasonal_periods=12), chronos]",
+        (
+            "**DGP:** Trend + seasonality (ETS A,A,A) — "
+            "$Y_t = \\ell_t + b_t + \\gamma_t + \\varepsilon_t$, s=12  \n"
+            "**Core:** ETS(A,A,A), Chronos-2"
+        ),
+        "Full ETS(A,A,A) — tendencia + estacionalidad",
+    ),
+    (
+        "1.19",
+        "AR1WithTrend",
+        {"intercept": 0.0, "trend_coeff": 0.1, "phi": 0.0},
+        "lambda T: [ThetaModel(), chronos]",
+        (
+            "**DGP:** Tendencia lineal pura — $Y_t = 0.1t + \\varepsilon_t$  \n"
+            "**Core:** Theta, Chronos-2"
+        ),
+        "Tendencia lineal — Theta",
     ),
 ]
 
 cells = [c0, c1, c2]
 
-for exp_id, dgp_cls, dgp_params, make_fn_src, md_desc in EXPS:
+for exp_id, dgp_cls, dgp_params, make_fn_src, md_desc, exp_name in EXPS:
     slug = exp_id.replace(".", "_")
 
     # Markdown header
@@ -349,10 +497,16 @@ for exp_id, dgp_cls, dgp_params, make_fn_src, md_desc in EXPS:
 
     # Visualization + table + metrics
     cells.append(code(
-        f"# Visualización representativa con banda de intervalo 95% (T=200)\n"
+        f"# Visualización representativa con banda de intervalo 95% (T=T_LIST[0])\n"
         f"plot_rep(\n"
         f"    dgp_{slug}, make_models_{slug}, dgp_params_{slug},\n"
-        f"    T=200, title=f\"Exp {exp_id} — Simulación representativa (T=200, seed={{SEED}})\"\n"
+        f"    T=T_LIST[0], title=f\"Exp {exp_id}: {exp_name} — Simulación representativa (T={{T_LIST[0]}}, seed={{SEED}})\"\n"
+        f")\n"
+        f"\n"
+        f"# Visualización representativa con banda de intervalo 95% (T=T_LIST[1])\n"
+        f"plot_rep(\n"
+        f"    dgp_{slug}, make_models_{slug}, dgp_params_{slug},\n"
+        f"    T=T_LIST[1], title=f\"Exp {exp_id}: {exp_name} — Simulación representativa (T={{T_LIST[1]}}, seed={{SEED}})\"\n"
         f")\n"
         f"\n"
         f"# Tabla de métricas por bloque\n"
@@ -362,7 +516,8 @@ for exp_id, dgp_cls, dgp_params, make_fn_src, md_desc in EXPS:
         f"# Gráficos de métricas por horizonte\n"
         f"plot_metrics(\n"
         f"    results_{slug},\n"
-        f'    title=f"Exp {exp_id} — Métricas por horizonte"\n'
+        f'    title=f"Exp {exp_id} — Métricas por horizonte",\n'
+        f'    metrics=("rmse", "crps", "winkler_95", "bias")\n'
         f")"
     ))
 

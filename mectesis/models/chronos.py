@@ -97,5 +97,16 @@ class ChronosModel(BaseModel):
             )
 
     @property
+    def supports_crps(self) -> bool:
+        return True
+
+    def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        """CRPS via ensemble approximation using the 5 cached quantile levels."""
+        from properscoring import crps_ensemble
+        q = self._all_quantiles(horizon)
+        samples = np.stack([q[l] for l in _CACHED_LEVELS], axis=1)  # (horizon, 5)
+        return crps_ensemble(y_true, samples)
+
+    @property
     def name(self) -> str:
         return "Chronos-2"
