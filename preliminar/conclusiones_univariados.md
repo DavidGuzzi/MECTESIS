@@ -1,10 +1,10 @@
 # Conclusiones — Experimentos univariados 1.1–1.19
 
-**Setup 1.1–1.12:** T ∈ {200, 500} | H = 24 | R = 500 | Semilla = 3649  
-**Setup 1.13–1.19:** T ∈ {50, 200} | H = 24 | R = 500 | Semilla = 3649  
+**Setup 1.1–1.19:** T ∈ {50, 200} | H = 24 | R = 500 | Semilla = 3649  
 **Modelos Core 1.1–1.12:** ARIMA/SARIMA/GARCH (statsmodels + arch, correctamente especificados) vs Chronos-2 (zero-shot)  
 **Modelos Core 1.13–1.19:** ETS / Theta / Seasonal Naive (statsmodels, correctamente especificados) vs Chronos-2 (zero-shot)  
-**Nota:** SeasonalNaiveModel no produce intervalos de predicción; las columnas probabilísticas (CRPS, cobertura, Winkler) solo están disponibles para Chronos en exps 1.16–1.17.
+**Nota:** SeasonalNaiveModel no produce intervalos de predicción; CRPS, cobertura y Winkler solo disponibles para Chronos en exps 1.16–1.17.  
+**Métricas reportadas:** promedios avg_all (H=1…24). RMSE, MAE, CRPS: menor es mejor. COV_80/95: nominal 0.80/0.95. WINKLER_95: menor es mejor (penaliza sobrecobertura + penaliza fuertemente las observaciones fuera del intervalo).
 
 ---
 
@@ -12,201 +12,180 @@
 
 ### Exp 1.1 — AR(1) φ=0.3, baja persistencia
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA(1,0,0) RMSE | 1.044 | 1.081 | 1.051 | 1.068 |
-| Chronos-2 RMSE    | 1.058 | 1.088 | 1.056 | 1.071 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ARIMA(1,0,0) | 50  | **1.081** | **0.860** | **0.614** | 0.758 | 0.919 | **3.91** | **5.39** |
+| Chronos-2    | 50  | 1.141 | 0.904 | 1.084 | 0.898 | 0.995 | 9.93  | 10.03 |
+| ARIMA(1,0,0) | 200 | **1.062** | **0.849** | **0.601** | 0.786 | 0.941 | **4.05** | **5.01** |
+| Chronos-2    | 200 | 1.073 | 0.858 | 0.730 | 0.792 | 0.962 | 4.57  | 5.14  |
 
-Ventaja ARIMA: ~1.3% en T=200, ~0.3% en T=500. Los errores son casi idénticos. Bias nulo en ambos. Cobertura 95%: ARIMA 0.944, Chronos 0.963 (Chronos ligeramente sobrecobertura por intervalos más anchos). **Conclusión: paridad práctica. El proceso de baja persistencia es suficientemente simple para que Chronos lo recupere sin estimación explícita.**
+ARIMA domina en RMSE (~5% en T=50, ~1% en T=200), MAE y CRPS. La brecha en CRPS es más pronunciada que en RMSE (76% en T=50): Chronos produce distribuciones predictivas mucho más anchas que no están justificadas por el error puntual. Chronos sobrecobertura sistemáticamente (cov_95=0.995 vs nominal 0.95) con intervalos 95% 2.5× más anchos en T=50, lo que resulta en Winkler ~2× peor. A T=200 los intervalos de Chronos se ajustan notablemente (width_95=4.57 vs 9.93), pero el CRPS gap persiste. **Conclusión: ARIMA domina en todas las métricas. El proceso de baja persistencia es simple pero Chronos no logra calibrar correctamente sus distribuciones predictivas.**
 
 ---
 
 ### Exp 1.2 — AR(1) φ=0.9, alta persistencia
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA(1,0,0) RMSE | 1.874 | 2.410 | 1.880 | 2.283 |
-| Chronos-2 RMSE    | 2.084 | 2.830 | 1.954 | 2.386 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ARIMA(1,0,0) | 50  | **2.308** | **1.849** | **1.375** | 0.583 | 0.780 | **5.96** | 16.96 |
+| Chronos-2    | 50  | 2.590 | 2.070 | 1.905 | 0.734 | 0.965 | 15.07 | **16.78** |
+| ARIMA(1,0,0) | 200 | **2.142** | **1.711** | **1.218** | 0.740 | 0.917 | **7.49** | **10.38** |
+| Chronos-2    | 200 | 2.457 | 1.930 | 1.696 | 0.777 | 0.961 | 11.38 | 13.00 |
 
-Ventaja ARIMA: ~11% en h=13-24 con T=200; ~4.5% en T=500. La brecha se reduce con más datos pero no desaparece. Chronos genera intervalos al 95% mucho más anchos (width_95: 13.7 vs 8.2 en T=200, h=13-24) y los cubre con sobrecobertura (cov_95=0.96 vs 0.90 de ARIMA). **Conclusión: ARIMA claramente mejor. Chronos subestima la persistencia, lo que se traduce en mayor varianza del error. La alta persistencia es más difícil de capturar zero-shot.**
+ARIMA domina en RMSE (~12% en ambos T) y CRPS (~28% en T=50, ~28% en T=200). La heterodoxia calibratoria es notable: ARIMA sufre **subcovertura severa** a T=50 (cov_95=0.780, cov_80=0.583), lo que infla su Winkler en T=50 hasta igualar a Chronos (16.96 vs 16.78). A T=200, ARIMA mejora la calibración (cov_95=0.917) y gana también en Winkler. Chronos sobrecobertura (cov_95=0.965/0.961) con intervalos ~2.5× más anchos. ARIMA no mejora con T en RMSE (2.31→2.14), lo que refleja que la persistencia φ=0.9 es genuinamente difícil: errores crecen con el horizonte y T=200 solo ayuda marginalmente a estimar φ. **Conclusión: ARIMA domina en precisión; ambos modelos tienen problemas de calibración pero por razones opuestas (ARIMA: subcovertura, Chronos: sobrecobertura).**
 
 ---
 
 ### Exp 1.3 — Random Walk I(1), sin drift
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA(0,1,0) RMSE | 2.389 | 4.239 | 2.400 | 4.102 |
-| Chronos-2 RMSE    | 2.487 | 4.422 | 2.424 | 4.153 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ARIMA(0,1,0) | 50  | **3.173** | **2.533** | **1.795** | **0.810** | **0.954** | **12.92** | **15.32** |
+| Chronos-2    | 50  | 3.540 | 2.819 | 2.505 | 0.691 | 0.942  | 18.47 | 22.71 |
+| ARIMA(0,1,0) | 200 | **3.314** | **2.639** | **1.869** | **0.797** | **0.954** | **13.07** | **15.57** |
+| Chronos-2    | 200 | 3.454 | 2.727 | 2.353 | 0.764 | 0.975  | 15.86 | 17.88 |
 
-Bias ≈ 0 en ambos modelos y en ambos horizontes: ninguno introduce sesgo. Ventaja ARIMA: ~4% en T=200, ~1% en T=500. La brecha desaparece prácticamente a T=500. **Conclusión: ARIMA marginalmente mejor. Ambos identifican correctamente el random walk (pronóstico = último valor observado). El DGP no presenta asimetría informativa significativa.**
+ARIMA domina en todas las métricas. Ventaja en RMSE: ~11% en T=50, ~4% en T=200. La brecha en CRPS es mayor (~40% en T=50) y la brecha en Winkler confirma que ARIMA calibra mejor (15.32 vs 22.71 en T=50). Chronos tiene **subcovertura** al 80% (0.691 en T=50) pero sobrecobertura al 95% (0.975 en T=200) con intervalos más anchos — señal de distribuciones predictivas mal formadas. Los valores de RMSE son altos (~3.2–3.5) porque el RW acumula varianza con el horizonte (RMSE esperado = σ·√h, promediado en h=1..24: ~3.2 para σ=1). **Conclusión: ARIMA identifica correctamente la estructura I(1) y produce pronósticos e intervalos más ajustados. Chronos subestima la varianza al 80% y la sobreestima al 95%.**
 
 ---
 
 ### Exp 1.4 — Random Walk I(1), drift = 0.5
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA(0,1,0) RMSE | 3.972 | **10.195** | 4.067 | **10.128** |
-| ARIMA(0,1,0) bias | +3.14 | **+9.26** | +3.24 | **+9.25** |
-| Chronos-2 RMSE    | 2.686 | 4.990 | 2.845 | 4.667 |
-| Chronos-2 bias    | −0.17 | +0.71 | −0.26 | +0.23 |
+| Modelo | T | RMSE | BIAS | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|---|
+| ARIMA(0,1,0) | 50  | 7.174 | +6.38 | 6.517 | 4.861 | 0.381 | 0.649 | 14.52 | 58.15 |
+| Chronos-2    | 50  | **5.658** | +3.30 | **4.685** | **4.575** | **0.770** | **0.988** | 36.71 | **38.35** |
+| ARIMA(0,1,0) | 200 | 7.083 | +6.20 | 6.374 | 4.733 | 0.409 | 0.669 | 14.67 | 54.20 |
+| Chronos-2    | 200 | **3.838** | +0.27 | **3.012** | **2.874** | **0.752** | **0.979** | 24.77 | **26.35** |
 
-**Resultado más llamativo del bloque.** ARIMA(0,1,0) estimado sin constante no captura el drift: el sesgo crece linealmente con el horizonte (≈ 0.5·h por construcción del DGP). A h=13-24 el RMSE de ARIMA es 2× el de Chronos. Chronos identifica el drift desde el contexto de la serie de forma zero-shot y mantiene bias bajo. Cobertura ARIMA en h=13-24: cov_80 = 0.23, cov_95 = 0.51 — colapso total de los intervalos por sesgo sistemático.
+**Resultado más relevante del bloque.** ARIMA(0,1,0) estimado sin constante no captura el drift=0.5: el sesgo crece linealmente con el horizonte (bias ≈ +0.5·h), llegando a +12.3 en h=24 (T=50). El RMSE de ARIMA es ~7.1 en ambos T, con cobertura catastrófica (cov_95=0.649/0.669) y Winkler >50. Chronos captura el drift desde el contexto de la serie: a T=50 su bias es +3.3 (sobreestima el drift) pero se reduce a +0.27 a T=200, con RMSE que cae de 5.66 a 3.84. Chronos gana en RMSE, MAE, CRPS y Winkler en ambos T; la ventaja se amplía con T.
 
-**Conclusión: victoria de Chronos por misspecificación del modelo clásico.** ARIMA(0,1,0) requiere `trend='c'` para incluir constante post-diferenciación. Sin ella, es el modelo incorrecto. Chronos es más robusto ante esta omisión.
+> **Nota de implementación:** `ARIMA(y, order=(0,1,0))` en statsmodels no agrega constante post-diferenciación por defecto. El modelo correcto es `ARIMA(y, order=(0,1,0), trend='c')`. Este experimento ilustra deliberadamente la misspecificación por omisión de drift — un error frecuente en la práctica.
 
-> **Nota de implementación:** ARIMA(0,1,0) con `statsmodels` no agrega drift automáticamente. El modelo correcto es `ARIMA(y, order=(0,1,0), trend='c')`. Este resultado ilustra un riesgo práctico real: la misspecificación por omisión del drift es un error frecuente.
+**Conclusión: victoria de Chronos por misspecificación del modelo clásico. Más contexto beneficia a Chronos (RMSE cae 32% de T=50 a T=200) mientras ARIMA permanece igualmente sesgado.**
 
 ---
 
 ### Exp 1.5 — AR(1) + tendencia lineal determinista
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA+trend RMSE | 1.260 | 1.295 | 1.224 | 1.282 |
-| Chronos-2 RMSE   | 1.382 | 1.446 | 1.327 | 1.400 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ARIMA(1,0,0)+trend | 50  | **1.895** | **1.514** | **1.147** | 0.526 | 0.714 | **4.13** | 15.91 |
+| Chronos-2          | 50  | 3.742 | 3.276 | 2.980 | **0.808** | **0.997** | 24.45 | **24.54** |
+| ARIMA(1,0,0)+trend | 200 | **1.277** | **1.022** | **0.724** | 0.765 | 0.931 | **4.69** | **5.98** |
+| Chronos-2          | 200 | 1.414 | 1.133 | 1.137 | 0.797 | 0.987 | 10.15 | 10.41 |
 
-Ventaja ARIMA: ~9% en T=200, ~8% en T=500. La brecha es estable y no se cierra con T mayor. Chronos mantiene la tendencia pero con mayor varianza residual. Característica notable: intervalos 95% de Chronos son muy anchos a T=200 (width_95 = 13.4 en h=13-24) con sobrecobertura marcada (cov_95 = 0.994), que se reduce a 8.6 en T=500 (cov_95 = 0.992). **Conclusión: ARIMA+trend domina con ventaja consistente. La extrapolación de la tendencia es más precisa cuando el modelo la parametriza explícitamente. Chronos "cubre" la incertidumbre sobre la tendencia con intervalos exageradamente amplios.**
+ARIMA+trend domina en RMSE y CRPS en ambos T, pero la brecha se cierra significativamente con T (97% en T=50 → 11% en T=200). A T=50, Chronos tiene bias=+2.94 — sobre-extrapola la tendencia con muestra corta — lo que colapsa su RMSE. A T=200, Chronos aprende el slope correctamente (bias≈0) pero sigue produciendo intervalos mucho más anchos (width_95=10.15 vs 4.69). ARIMA+trend tiene **subcovertura severa** a T=50 (cov_95=0.714, cov_80=0.526) con Winkler peor que Chronos (15.91 vs 24.54); a T=200 la calibración mejora y gana en Winkler también. **Conclusión: ARIMA domina en precisión puntual y distribucional; Chronos es inestable con muestras cortas ante tendencias lineales fuertes. La brecha en RMSE converge con T pero no desaparece.**
 
 ---
 
 ### Exp 1.6 — SAR trimestral, s=4, estacionario
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| SARIMA(1,0,0)(1,0,0)_4 RMSE | 1.189 | 1.209 | 1.189 | 1.230 |
-| Chronos-2 RMSE              | 1.248 | 1.288 | 1.212 | 1.254 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| SARIMA(1,0,0)(1,0,0)_4 | 50  | **1.199** | **0.959** | **0.683** | 0.778 | 0.930 | **4.67** | **5.97** |
+| Chronos-2              | 50  | 1.402 | 1.120 | 1.232 | 0.862 | 0.992 | 10.96 | 11.10 |
+| SARIMA(1,0,0)(1,0,0)_4 | 200 | **1.199** | **0.957** | **0.677** | 0.795 | 0.946 | **4.68** | **5.65** |
+| Chronos-2              | 200 | 1.268 | 1.015 | 0.855 | 0.783 | 0.961 | 5.30  | 6.06  |
 
-Ventaja SARIMA: ~5% en T=200; **<2% en T=500.** La brecha se cierra casi completamente al aumentar la muestra. Cobertura: ambos ligeramente por debajo del nominal en 80%; similar en 95% con Chronos levemente sobre el nominal. **Conclusión: SARIMA mejor pero la ventaja es mínima con T=500. Chronos identifica el patrón estacional trimestral de forma competitiva, especialmente con contexto largo.**
+SARIMA domina en todas las métricas. Ventaja en RMSE: 14% en T=50, 6% en T=200. La brecha en CRPS es mayor (81% en T=50, 26% en T=200) y la brecha en Winkler confirma mejor calibración de SARIMA. Chronos sobrecobertura al 95% (0.992/0.961) con intervalos más anchos. Notablemente, el RMSE de SARIMA es prácticamente idéntico entre T=50 y T=200 (1.199 en ambos) — el patrón SAR estacionario de período 4 se identifica con muy poca muestra. **Conclusión: SARIMA domina en todas las métricas; la ventaja disminuye con T pero no desaparece.**
 
 ---
 
 ### Exp 1.7 — Seasonal I(1)×I(1)_12, doble integración
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| SARIMA(0,1,0)(0,1,0)_12 RMSE | 2.386 | 5.929 | 2.475 | **6.185** |
-| Chronos-2 RMSE               | 3.397 | 8.251 | **5.393** | **10.123** |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| SARIMA(0,1,0)(0,1,0)_12 | 50  | **4.097** | **3.248** | **2.322** | **0.790** | **0.934** | **16.13** | **20.64** |
+| Chronos-2               | 50  | 5.934 | 4.695 | 3.895 | 0.644 | 0.942 | 27.08 | 32.96 |
+| SARIMA(0,1,0)(0,1,0)_12 | 200 | **4.158** | **3.327** | **2.356** | **0.800** | **0.952** | **16.52** | **19.13** |
+| Chronos-2               | 200 | 5.824 | 4.657 | 3.894 | 0.701 | 0.943 | 25.83 | 32.69 |
 
-**El peor resultado de Chronos y el único caso donde la brecha se amplía con T.** A T=500 Chronos empeora significativamente: varianza = 66.6 vs 23.3 de SARIMA. Cobertura 80% de Chronos en h=13-24 a T=500: 0.703 — seria subcovertura. SARIMA mantiene estabilidad total entre T=200 y T=500.
-
-**Conclusión: SARIMA domina ampliamente. La doble integración estacional es el caso más adverso para Chronos. Más contexto le hace daño, posiblemente porque la serie I(1)×I(1)_12 con T=500 tiene una estructura no estacionaria de largo alcance que el modelo de fundación no maneja bien. Esta es la limitación más importante identificada en el bloque univariado.**
+**El peor resultado de Chronos en el bloque.** SARIMA domina en todas las métricas. Ventaja en RMSE: ~45% en T=50, ~40% en T=200 — la brecha es grande y **estable** (no crece ni se cierra con T). En CRPS la brecha es similar (68% en ambos T). Chronos tiene **subcovertura al 80%** (0.644 en T=50) a pesar de sobrecobertura al 95%, señal de distribuciones predictivas con colas inadecuadas. El RMSE de Chronos apenas cambia entre T=50 y T=200 (5.934→5.824), a diferencia de otros experimentos donde más contexto ayuda. **Conclusión: la doble integración estacional es la limitación estructural más clara de Chronos. El modelo de fundación no maneja la no-estacionariedad de largo alcance en dos dimensiones, y más contexto no lo ayuda.**
 
 ---
 
 ### Exp 1.8 — AR(1) con quiebre estructural en T/2
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| ARIMA+break RMSE | 1.576 | 1.667 | 1.558 | 1.662 |
-| Chronos-2 RMSE   | 1.666 | 1.825 | **1.551** | **1.658** |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ARIMA(1,0,0)+break | 50  | **1.823** | **1.448** | **1.047** | 0.686 | 0.865 | **5.77** | **10.31** |
+| Chronos-2          | 50  | 1.980 | 1.581 | 1.546 | 0.792 | 0.987 | 13.05 | 13.34 |
+| ARIMA(1,0,0)+break | 200 | **1.622** | **1.302** | **0.928** | 0.699 | 0.888 | **5.26** | **8.12** |
+| Chronos-2          | 200 | 1.745 | 1.388 | 1.120 | 0.724 | 0.936 | 6.67  | 8.35  |
 
-A T=200, ARIMA+break mejor en ~9%. A T=500, **Chronos alcanza al modelo correctamente especificado** (diferencia < 0.5%). Ambos modelos presentan subcovertura en 80% (cov_80 ≈ 0.70-0.73 en ambos T) y en 95% (cov_95 ≈ 0.89-0.92): el quiebre estructural infla la incertidumbre del error más allá de lo que los intervalos capturan.
-
-**Conclusión: Chronos es adaptativo ante quiebres estructurales. Con contexto suficiente (T=500), aprende implícitamente el nuevo régimen sin necesitar la fecha del quiebre. La dummy explícita solo tiene ventaja cuando la muestra es corta.**
+ARIMA+break domina en RMSE (~8% en T=50, ~7% en T=200), MAE, CRPS y Winkler. La brecha es consistente entre T y no converge (a diferencia de la versión anterior con T=500). Ambos modelos exhiben subcovertura al 80% y 95%: el quiebre estructural infla la incertidumbre real más allá de lo que cualquiera de los dos modelos captura en sus intervalos. CRPS gap de ~48% en T=50 refleja que Chronos produce distribuciones mucho más dispersas. A T=200, Chronos mejora (width_95 cae de 13.05 a 6.67) sugiriendo que más contexto le ayuda a identificar el nuevo régimen. **Conclusión: ARIMA con dummy de quiebre explícito domina en todas las métricas con ventaja estable.**
 
 ---
 
 ### Exp 1.9 — AR(1)–ARCH(1), volatilidad baja persistencia
 
-*Nota de escala: ω/(1−α) = 0.1/0.7 ≈ 0.143 → σ_ε_incondicional ≈ 0.38. Las métricas están en escala distinta a exps 1.10–1.12.*
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| AR(1)+ARCH(1) | 50  | **0.409** | **0.318** | **0.233** | 0.777 | 0.920 | **1.61** | **2.32** |
+| Chronos-2     | 50  | 0.433 | 0.336 | 0.407 | 0.891 | 0.993 | 3.77  | 3.84  |
+| AR(1)+ARCH(1) | 200 | **0.395** | **0.308** | **0.220** | **0.808** | **0.945** | **1.54** | **1.98** |
+| Chronos-2     | 200 | 0.399 | 0.312 | 0.273 | 0.797 | 0.960 | 1.75  | 2.07  |
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| AR(1)+ARCH(1) RMSE | 0.392 | 0.398 | 0.399 | 0.397 |
-| Chronos-2 RMSE     | 0.396 | 0.403 | 0.400 | 0.398 |
-
-avg_all — AR+ARCH: RMSE=0.395/0.398, cov_95=0.945/0.946, width_95=1.535/1.540 (T=200/T=500).  
-avg_all — Chronos: RMSE=0.399/0.399, cov_95=0.960/0.955, width_95=1.749/1.639.
-
-Ventaja AR+ARCH en RMSE: ~1% (T=200), ~0.2% (T=500). Intervalos de Chronos ~14% más anchos en T=200, ~6% en T=500. **Conclusión: paridad práctica en pronóstico puntual. ARCH(1) tiene volatilidad transitoria (sin término β, la persistencia de σ decae en un período), lo que Chronos puede capturar implícitamente. El modelo clásico produce intervalos más ajustados y mejor calibrados.**
+ARIMA domina en RMSE (~6% T=50, ~1% T=200), MAE, CRPS y Winkler. La brecha en CRPS es mucho mayor que en RMSE: 75% en T=50, 24% en T=200. A T=200, el RMSE converge a paridad (~1%) pero Chronos produce intervalos ~14% más anchos con CRPS 24% mayor. Chronos sobrecobertura al 95% en ambos T (0.993/0.960) con intervalos 2.3× más anchos en T=50. **Conclusión: paridad en RMSE a T=200, pero ventaja consistente del modelo clásico en CRPS y calibración. La heterocedasticidad transitoria (sin β, persistencia cae en un período) no beneficia estructuralmente a ningún modelo en RMSE.**
 
 ---
 
 ### Exp 1.10 — AR(1)–GARCH(1,1), persistencia alta (α+β=0.9)
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| AR(1)+GARCH(1,1) RMSE | 1.043 | 1.052 | 1.050 | 1.047 |
-| Chronos-2 RMSE        | 1.051 | 1.066 | 1.052 | 1.050 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| AR(1)+GARCH(1,1) | 50  | **1.079** | **0.849** | **0.614** | 0.750 | 0.908 | **3.95** | **5.88** |
+| Chronos-2        | 50  | 1.137 | 0.890 | 1.056 | 0.891 | 0.993 | 9.63  | 9.76  |
+| AR(1)+GARCH(1,1) | 200 | **1.045** | **0.823** | **0.587** | **0.794** | **0.942** | **4.03** | **5.15** |
+| Chronos-2        | 200 | 1.057 | 0.833 | 0.722 | 0.791 | 0.957 | 4.55  | 5.34  |
 
-avg_all — AR+GARCH: RMSE=1.048/1.048, cov_95=0.939/0.943, width_95=4.032/4.045.  
-avg_all — Chronos: RMSE=1.058/1.051, cov_95=0.957/0.953, width_95=4.554/4.290.
-
-Ventaja AR+GARCH en RMSE: ~0.9% (T=200), ~0.3% (T=500). La brecha se comprime con T. Chronos produce intervalos ~13% más anchos en T=200, ~6% en T=500. **Conclusión: paridad en pronóstico puntual, con leve ventaja decreciente del modelo clásico. La heterocedasticidad GARCH afecta la varianza pero no la media condicional: ambos modelos usan el mismo componente AR(1) para el pronóstico de nivel. El modelo clásico gana en calibración de intervalos.**
+AR+GARCH domina en RMSE (~5% T=50, ~1% T=200), MAE y CRPS. La brecha en CRPS es ~72% en T=50, ~23% en T=200 — mucho mayor que en RMSE. Chronos sobrecobertura al 95% en T=50 (0.993) con intervalos 2.4× más anchos, mientras que a T=200 los intervalos se ajustan (4.55 vs 4.03) con Winkler comparable. La dinámica GARCH afecta la varianza condicional pero no la media (AR), por lo que el RMSE es similar para ambos: el error de nivel AR domina el error cuadrático. **Conclusión: ventaja del modelo clásico en RMSE y CRPS; la brecha en calibración disminuye con T.**
 
 ---
 
 ### Exp 1.11 — GARCH(1,1) media cero
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| GARCH(1,1)-ZeroMean RMSE | 0.986 | 0.998 | 1.002 | 1.002 |
-| Chronos-2 RMSE           | 0.991 | 1.006 | 1.003 | 1.003 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| GARCH(1,1)-ZeroMean | 50  | **1.002** | **0.789** | **0.569** | 0.776 | 0.917 | **3.84** | **5.39** |
+| Chronos-2           | 50  | 1.052 | 0.826 | 0.979 | 0.889 | 0.992 | 8.93  | 9.07  |
+| GARCH(1,1)-ZeroMean | 200 | **0.992** | **0.784** | **0.558** | **0.797** | **0.942** | **3.85** | **4.84** |
+| Chronos-2           | 200 | 0.999 | 0.789 | 0.685 | 0.791 | 0.958 | 4.33  | 5.03  |
 
-avg_all — GARCH: RMSE=0.992/1.002, cov_95=0.942/0.945, width_95=3.854/3.876.  
-avg_all — Chronos: RMSE=0.999/1.003, cov_95=0.958/0.952, width_95=4.330/4.101.
-
-Ventaja GARCH en RMSE: ~0.7% (T=200), ~0.1% (T=500). A T=500 la paridad es prácticamente perfecta. Ambos convergen al pronóstico natural del proceso (media cero). Chronos genera intervalos ~12% más anchos en T=200, ~6% en T=500. **Conclusión: empate. Sin componente AR, el único pronóstico posible es 0 a cualquier horizonte. Ambos llegan ahí. La diferencia en intervalos persiste: GARCH estima la varianza condicional actual; Chronos la promedia de forma más conservadora.**
+GARCH domina en todas las métricas, con paridad casi perfecta en RMSE a T=200 (~1%). La brecha en CRPS es desproporcionada: 72% en T=50, 23% en T=200. Sin componente AR, el pronóstico puntual óptimo es cero para ambos modelos, por lo que el RMSE converge. La diferencia residual en CRPS a T=200 refleja que GARCH(1,1) estima la varianza condicional actual con precisión mientras Chronos la promedia de forma más conservadora. **Conclusión: empate en RMSE a T=200; GARCH con ventaja en CRPS y calibración de intervalos.**
 
 ---
 
 ### Exp 1.12 — AR(1)–GJR–GARCH(1,1,1), efecto leverage
 
-| | T=200 h=1-12 | T=200 h=13-24 | T=500 h=1-12 | T=500 h=13-24 |
-|---|---|---|---|---|
-| AR(1)+GJR-GARCH(1,1,1) RMSE | 1.043 | 1.052 | 1.050 | 1.047 |
-| Chronos-2 RMSE              | 1.051 | 1.066 | 1.052 | 1.050 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| AR(1)+GJR-GARCH(1,1,1) | 50  | **1.075** | **0.845** | **0.615** | 0.755 | 0.907 | **4.07** | **6.03** |
+| Chronos-2              | 50  | 1.138 | 0.888 | 1.060 | 0.890 | 0.992 | 9.69  | 9.84  |
+| AR(1)+GJR-GARCH(1,1,1) | 200 | **1.048** | **0.822** | **0.587** | **0.795** | **0.939** | **4.03** | **5.20** |
+| Chronos-2              | 200 | 1.058 | 0.830 | 0.721 | 0.792 | 0.957 | 4.55  | 5.39  |
 
-avg_all — GJR: RMSE=1.048/1.049, cov_95=0.939/0.945, width_95=4.032/4.042.  
-avg_all — Chronos: RMSE=1.058/1.051, cov_95=0.957/0.953, width_95=4.554/4.290.
-
-Ventaja GJR en RMSE: ~0.9% (T=200), ~0.2% (T=500). Métricas casi idénticas a exp 1.10 (AR+GARCH simétrico): la asimetría del leverage no beneficia al modelo clásico en RMSE porque el componente de media (AR) es el mismo en ambos experimentos. **Conclusión: el efecto leverage no genera ventaja adicional en pronóstico puntual sobre un GARCH simétrico. La asimetría γ·ε²·1{ε<0} afecta la varianza condicional en shocks negativos, lo que es irrelevante para el error medio cuadrático del nivel. GJR aventaja a Chronos solo en calibración de intervalos.**
-
----
-
-## Resumen comparativo
-
-| Exp | DGP | T=200 ganador | T=500 ganador | Diferencia RMSE (avg) |
-|-----|-----|--------------|--------------|----------------------|
-| 1.1 | AR(1) φ=0.3 | ARIMA (~1%) | Empate | Mínima |
-| 1.2 | AR(1) φ=0.9 | ARIMA (11%) | ARIMA (4%) | Moderada, estable |
-| 1.3 | RW sin drift | ARIMA (4%) | Empate | Pequeña |
-| 1.4 | RW drift=0.5 | **Chronos (>100%)** | **Chronos (>100%)** | **Extrema (misspecif.)** |
-| 1.5 | AR+trend | ARIMA (9%) | ARIMA (8%) | Moderada, estable |
-| 1.6 | SAR s=4 | SARIMA (5%) | SARIMA (~2%) | Pequeña, decreciente |
-| 1.7 | I(1)×I(1)_12 | SARIMA (27%) | **SARIMA (55%)** | **Grande, creciente** |
-| 1.8 | AR+break | ARIMA+break (9%) | **Empate** | Presente solo con T corto |
-| 1.9 | AR(1)+ARCH(1) | AR+ARCH (~1%) | Empate | Mínima |
-| 1.10 | AR(1)+GARCH(1,1) | AR+GARCH (~1%) | Empate | Mínima |
-| 1.11 | GARCH media cero | Empate | Empate | Mínima |
-| 1.12 | AR(1)+GJR-GARCH | GJR (~1%) | Empate | Mínima |
+Métricas casi idénticas a exp 1.10 (GARCH simétrico), confirmando que el efecto leverage γ·ε²·1{ε<0} no genera ventaja adicional en RMSE: la asimetría afecta la varianza condicional en shocks negativos, irrelevante para el error medio cuadrático del nivel. GJR domina en RMSE (~6% T=50, ~1% T=200) y CRPS (~72% T=50). **Conclusión: el leverage no cambia el ranking entre modelos en ninguna métrica.**
 
 ---
 
-## Conclusiones transversales
+## Resumen comparativo — Exps 1.1–1.12
 
-### 1. Los modelos clásicos dominan en su DGP nativo
-Cuando el modelo clásico está correctamente especificado, supera a Chronos en todos los casos excepto exp 1.4 (misspecificación). La ventaja es más pronunciada en estructuras con memoria larga (1.2) o con integración estacional (1.7).
-
-### 2. Chronos es robusto ante misspecificaciones del modelo clásico
-El caso más notable es el drift en exp 1.4: Chronos identifica el drift desde el contexto de la serie sin estimarlo explícitamente. Esto sugiere que, en aplicaciones reales donde la especificación del modelo clásico es incierta, Chronos puede ser más robusto.
-
-### 3. La doble integración estacional es el talón de Aquiles de Chronos
-Exp 1.7 es el único caso donde Chronos empeora con T mayor. La estructura I(1)×I(1)_12 acumula no-estacionariedad en dos dimensiones y el modelo de fundación no la maneja adecuadamente. Resulta la limitación estructural más clara del bloque.
-
-### 4. Las brechas se reducen con T — excepto en doble integración
-En los experimentos con DGPs estacionarios o moderadamente persistentes (1.1, 1.3, 1.6, 1.8), la ventaja del modelo clásico se comprime con T=500. Esto es consistente con la hipótesis de que Chronos requiere contexto suficiente para identificar la estructura del proceso.
-
-### 5. Intervalos de predicción: Chronos tiene sobrecobertura al 95%, subcovertura al 80%
-Chronos genera sistemáticamente intervalos más anchos. A nivel 95% produce sobrecobertura (salvo en 1.7 con T=500). A nivel 80% tiende a estar por debajo del nominal, especialmente en DGPs complejos. El modelo clásico tiene mejor calibración en 80% pero también puede tener problemas en DGPs con quiebre (1.8).
-
-### 6. Implicación para la tesis
-Bajo condiciones de laboratorio (DGP conocido, modelo correctamente especificado), ARIMA/SARIMA es el benchmark correcto. La pregunta relevante para series reales es distinta: el DGP es desconocido, la especificación del modelo clásico es incierta, y las series pueden tener quiebres, drifts no explicitados, u otras complejidades. En ese contexto, los resultados de exp 1.4 y 1.8 sugieren que Chronos puede tener ventajas prácticas.
-
-### 7. Heterocedasticidad condicional: efecto nulo en pronóstico puntual, intervalos más anchos de Chronos
-Los experimentos 1.9–1.12 muestran que la volatilidad condicional (ARCH/GARCH) afecta mínimamente el error de pronóstico puntual. Tanto los modelos clásicos como Chronos producen RMSE casi idénticos: el componente de media (AR o constante cero) es el que determina el error al horizonte; la varianza condicional solo es relevante para la construcción de intervalos. El modelo clásico correctamente especificado logra mejor calibración de intervalos y anchos más ajustados. Chronos sobreestima el ancho de los intervalos (~6–14% más amplio) pero mantiene mayor cobertura efectiva al 95%. La asimetría del efecto leverage (exp 1.12) no genera ventaja adicional observable en RMSE.
+| Exp | DGP | T=50 ganador (RMSE) | T=200 ganador (RMSE) | CRPS gap (T=50) | Calibración dominante |
+|-----|-----|---------------------|----------------------|-----------------|-----------------------|
+| 1.1 | AR(1) φ=0.3 | ARIMA (5%) | ARIMA (1%) | ARIMA (76%) | ARIMA (Winkler 2×) |
+| 1.2 | AR(1) φ=0.9 | ARIMA (12%) | ARIMA (12%) | ARIMA (28%) | Mixto (ARIMA subcov., Chronos sobrecobertura) |
+| 1.3 | RW sin drift | ARIMA (11%) | ARIMA (4%) | ARIMA (40%) | ARIMA (Winkler mejor) |
+| 1.4 | RW drift=0.5 | **Chronos (21%)** | **Chronos (46%)** | Chronos ligera | **Chronos (Winkler: 58 vs 38)** |
+| 1.5 | AR+trend | ARIMA (49%) | ARIMA (10%) | ARIMA (60%) | T=50: Chronos cov.; T=200: ARIMA |
+| 1.6 | SAR s=4 | SARIMA (14%) | SARIMA (6%) | SARIMA (80%) | SARIMA (Winkler mejor) |
+| 1.7 | I(1)×I(1)_12 | **SARIMA (45%)** | **SARIMA (40%)** | SARIMA (68%) | SARIMA (todas las métricas) |
+| 1.8 | AR+break | ARIMA (8%) | ARIMA (7%) | ARIMA (48%) | ARIMA (Winkler mejor) |
+| 1.9 | AR-ARCH(1) | AR+ARCH (6%) | Empate (1%) | AR+ARCH (75%) | AR+ARCH (CRPS, Winkler) |
+| 1.10 | AR-GARCH(1,1) | AR+GARCH (5%) | Empate (1%) | AR+GARCH (72%) | AR+GARCH (CRPS, Winkler) |
+| 1.11 | GARCH media 0 | GARCH (5%) | Empate (1%) | GARCH (72%) | GARCH (CRPS, Winkler) |
+| 1.12 | AR-GJR-GARCH | GJR (6%) | Empate (1%) | GJR (72%) | GJR (CRPS, Winkler) |
 
 ---
 
@@ -216,68 +195,68 @@ Los experimentos 1.9–1.12 muestran que la volatilidad condicional (ARCH/GARCH)
 
 ### Exp 1.13 — Nivel local (Local Level → ETS(A,N,N))
 
-| | T=50 | T=200 |
-|---|---|---|
-| ETS(A,N,N) RMSE | 1.505 | 1.541 |
-| Chronos-2 RMSE  | 1.523 | 1.651 |
-| ETS(A,N,N) CRPS | 0.868 | 0.875 |
-| Chronos-2 CRPS  | 1.302 | 1.094 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ETS(A,N,N) | 50  | **1.505** | **1.198** | **0.868** | 0.740 | 0.895 | **5.48** | **8.42** |
+| Chronos-2  | 50  | 1.523 | 1.213 | 1.302 | 0.843 | 0.988 | 11.41 | 11.67 |
+| ETS(A,N,N) | 200 | **1.541** | **1.232** | **0.875** | 0.781 | 0.938 | **5.86** | **7.44** |
+| Chronos-2  | 200 | 1.651 | 1.320 | 1.094 | 0.735 | 0.953 | 6.91  | 8.30  |
 
-ETS(A,N,N) gana en RMSE en ambos T (1% a T=50, 7% a T=200). La ventaja crece con el tamaño muestral, a diferencia de los exps ARMA donde converge. La diferencia de CRPS es sustancial: ETS produce distribuciones predictivas más ajustadas. Los intervalos de Chronos son 2× más anchos a T=50 (width_95=11.4 vs 5.5), con fuerte sobrecobertura (cov_95=0.988). A T=200 ambos tienen cobertura razonable, pero los intervalos de Chronos siguen siendo ~18% más anchos. **Conclusión: ETS(A,N,N) domina. El nivel local es una estructura simple que el modelo correctamente especificado captura mejor que Chronos, y la ventaja no disminuye con más datos.**
+ETS domina en RMSE (1% en T=50, 7% en T=200), MAE, CRPS y Winkler. La brecha en RMSE crece con T (Chronos no mejora mientras ETS mantiene el nivel). La brecha en CRPS es sustancial: 50% en T=50. Chronos sobrecobertura al 95% en T=50 (0.988) con intervalos 2× más anchos. A T=200, Chronos tiene subcovertura al 80% (0.735) sugiriendo distribuciones predictivas con forma inadecuada. **Conclusión: ETS domina en todas las métricas; la ventaja crece con T.**
 
 ---
 
 ### Exp 1.14 — Tendencia local (Local Trend → ETS(A,A,N))
 
-| | T=50 | T=200 |
-|---|---|---|
-| ETS(A,A,N) RMSE | 4.754 | 4.205 |
-| Chronos-2 RMSE  | 6.066 | 5.544 |
-| ETS(A,A,N) CRPS | 3.306 | 2.819 |
-| Chronos-2 CRPS  | 3.914 | 3.777 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ETS(A,A,N) | 50  | **4.754** | **3.761** | **3.306** | 0.564 | 0.669 | 18.49 | 67.59 |
+| Chronos-2  | 50  | 6.066 | 4.853 | 3.914 | 0.606 | 0.914 | 24.64 | **36.38** |
+| ETS(A,A,N) | 200 | **4.205** | **3.364** | **2.819** | 0.939 | **0.988** | **32.55** | **33.32** |
+| Chronos-2  | 200 | 5.544 | 4.442 | 3.777 | 0.682 | 0.934 | 26.37 | 33.19 |
 
-Ventaja ETS: 22% a T=50, 32% a T=200. La brecha crece, consistente con exp 1.13. Los RMSE son altos en ambos modelos porque el DGP (tendencia + nivel estocásticos) acumula incertidumbre a lo largo del horizonte. Comportamiento atípico en intervalos a T=50: ETS tiene cobertura muy baja (cov_95=0.669) con intervalos estrechos — el modelo subestima la incertidumbre acumulada en muestras cortas. Con T=200, ETS corrige esto (cov_95=0.988). **Conclusión: ETS domina claramente, pero los intervalos en muestras cortas son poco confiables. El DGP de tendencia local genera la mayor incertidumbre del bloque, y el modelo clásico necesita T suficiente para calibrar bien la distribución predictiva.**
+ETS domina en RMSE (22% en T=50, 24% en T=200) y CRPS. Sin embargo, en Winkler el resultado se invierte a T=50: **Chronos tiene Winkler mejor** (36.38 vs 67.59) porque ETS presenta **subcovertura severa** (cov_95=0.669), lo que infla masivamente el Winkler por observaciones fuera del intervalo. A T=200, ETS corrige la calibración (cov_95=0.988) con intervalos muy anchos (width_95=32.55) y gana en Winkler. Ambos modelos tienen altos RMSE (~4–6) porque el DGP de tendencia + nivel estocásticos acumula incertidumbre con el horizonte. **Conclusión: ETS domina en RMSE y CRPS, pero sus intervalos a T=50 son no confiables (Winkler peor que Chronos). Con T=200, ETS domina también en Winkler.**
 
 ---
 
 ### Exp 1.15 — Tendencia amortiguada (Damped Trend → ETS(A,Ad,N))
 
-| | T=50 | T=200 |
-|---|---|---|
-| ETS(A,Ad,N) RMSE | 2.814 | 2.435 |
-| Chronos-2 RMSE   | 2.601 | 2.627 |
-| ETS(A,Ad,N) CRPS | 1.723 | 1.518 |
-| Chronos-2 CRPS   | 1.955 | 1.729 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ETS(A,Ad,N) | 50  | 2.814 | 2.176 | **1.723** | 0.567 | 0.711 | **7.97** | 28.73 |
+| Chronos-2   | 50  | **2.601** | **2.062** | 1.955 | **0.753** | **0.965** | 15.34 | **17.26** |
+| ETS(A,Ad,N) | 200 | **2.435** | **1.935** | **1.518** | **0.862** | **0.959** | 14.19 | **15.95** |
+| Chronos-2   | 200 | 2.627 | 2.119 | 1.729 | 0.703 | 0.951 | **11.10** | 13.15 |
 
-**Inversión a T=50: Chronos gana en RMSE (8%).** Con muestra corta, la estimación del parámetro de amortiguamiento φ es ruidosa y ETS genera pronósticos peores. Con T=200, ETS recupera la ventaja (7%). Los intervalos de ETS a T=50 son muy estrechos con subcovertura severa (cov_95=0.711); Chronos cubre bien (cov_95=0.965). A T=200 ambos mejoran. **Conclusión: la estimación del amortiguamiento requiere suficiente historia. Con muestras cortas, Chronos es más robusto zero-shot que ETS(A,Ad,N) recién identificado. Es uno de los pocos casos donde Chronos supera al modelo correctamente especificado.**
+A T=50, **Chronos gana en RMSE (8%) y MAE**, y domina en Winkler (17.26 vs 28.73). ETS tiene CRPS ligeramente mejor pero subcovertura severa (cov_95=0.711) con Winkler 66% peor. A T=200, ETS recupera la ventaja en RMSE (7%), CRPS y Winkler; la calibración de ETS mejora (cov_95=0.959). El parámetro de amortiguamiento φ es difícil de estimar con T=50: alta incertidumbre en la estimación infla la varianza de los errores. Chronos zero-shot es más robusto ante la estimación ruidosa del damping en muestras cortas. **Conclusión: inversión según T. Chronos más robusto a T=50 (RMSE, MAE, Winkler). ETS domina a T=200 (RMSE, CRPS, Winkler). El único caso del bloque donde Chronos gana en RMSE.**
 
 ---
 
 ### Exp 1.16 — Estacionalidad determinística (s=12)
 
-| | T=50 | T=200 |
-|---|---|---|
-| SeasonalNaive(12) RMSE | 1.396 | 1.419 |
-| Chronos-2 RMSE         | 1.233 | 1.020 |
-| Chronos-2 CRPS         | 1.568 | 0.693 |
-| Chronos-2 cov_95       | 0.999 | 0.971 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| SeasonalNaive(12) | 50  | 1.396 | 1.111 | — | — | — | — | — |
+| Chronos-2         | 50  | **1.233** | **0.981** | 1.568 | 0.966 | 0.999 | 15.45 | 15.46 |
+| SeasonalNaive(12) | 200 | 1.419 | 1.136 | — | — | — | — | — |
+| Chronos-2         | 200 | **1.020** | **0.814** | **0.693** | 0.775 | 0.971 | 4.57  | 5.02  |
 
-**Resultado contraintuitivo: Chronos gana sobre Seasonal Naive.** Para estacionalidad determinística ($Y_t = \mu + s_{t \bmod 12} + \varepsilon_t$, patrón fijo), Seasonal Naive replica solo el último ciclo observado. Chronos puede aprender el patrón promediando sobre múltiples ciclos, equivaliendo a un estimador más eficiente. La ventaja de Chronos crece notablemente con T (11% → 28%), acumulando evidencia de ciclos previos. Nota: los intervalos de Chronos están inflados masivamente a T=50 (width_95=15.4, cov_95=0.999) y se calibran mejor con T=200 (width_95=4.6, cov_95=0.971). **Conclusión: Seasonal Naive no es el modelo óptimo para estacionalidad puramente determinística. El modelo óptimo promedía sobre todos los ciclos observados. Chronos lo aproxima implícitamente; el modelo clásico correcto sería SARIMA(0,0,0)(0,0,0)_12 con dummies estacionales o media estacional.**
+**Chronos gana sobre Seasonal Naive** en RMSE y MAE en ambos T (12% en T=50, 28% en T=200). Seasonal Naive replica solo el último ciclo observado — óptimo para el seasonal RW, pero subóptimo para estacionalidad determinística fija donde promediar ciclos reduce el ruido. Chronos aproxima implícitamente ese promedio, mejorando con T. A T=50, Chronos tiene sobrecobertura extrema (cov_95=0.999) con intervalos muy anchos (15.45), CRPS=1.568 — distribuciones excesivamente conservadoras. A T=200, Chronos se calibra bien (cov_95=0.971, width_95=4.57, CRPS=0.693). **Conclusión: victoria de Chronos por diseño óptimo superior al benchmark. Seasonal Naive no es el modelo correcto para estacionalidad determinística; el óptimo promedía ciclos.**
 
-> **Nota metodológica:** SeasonalNaiveModel no provee intervalos de predicción. Las columnas probabilísticas de esta tabla corresponden solo a Chronos-2.
+> **Nota metodológica:** SeasonalNaiveModel no provee intervalos de predicción.
 
 ---
 
 ### Exp 1.17 — Seasonal random walk (s=12)
 
-| | T=50 | T=200 |
-|---|---|---|
-| SeasonalNaive(12) RMSE | 1.193 | 1.199 |
-| Chronos-2 RMSE         | 1.403 | 2.075 |
-| Chronos-2 CRPS         | 0.913 | 2.166 |
-| Chronos-2 cov_95       | 0.941 | 0.999 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| SeasonalNaive(12) | 50  | **1.193** | **0.953** | — | — | — | — | — |
+| Chronos-2         | 50  | 2.075 | 1.595 | 2.166 | 0.939 | 0.999 | 20.82 | 20.84 |
+| SeasonalNaive(12) | 200 | **1.199** | **0.960** | — | — | — | — | — |
+| Chronos-2         | 200 | 1.403 | 1.117 | 0.913 | 0.721 | 0.941 | 5.58  | 6.98  |
 
-**Inversión exacta respecto a exp 1.16.** Para el seasonal random walk ($Y_t = Y_{t-12} + \varepsilon_t$), el pronóstico óptimo es $\hat{y}_{T+h} = y_{T+h-12}$ — exactamente lo que produce Seasonal Naive. Chronos empeora dramáticamente con T=200 (RMSE sube de 1.40 a 2.07), repitiendo el patrón adverso de exp 1.7 (doble integración estacional). Chronos a T=200 tiene intervalos extremadamente amplios (width_95=20.8) con sobrecobertura total (cov_95=0.999). **Conclusión: Seasonal Naive domina. La no-estacionariedad estacional es estructuralmente difícil para Chronos, y más contexto empeora el resultado. La comparación 1.16 vs 1.17 ilustra la diferencia fundamental entre estacionalidad determinística (donde más contexto ayuda a Chronos) y estocástica (donde más contexto perjudica).**
+**Inversión exacta respecto a exp 1.16.** SeasonalNaive domina: Chronos es 74% peor en RMSE a T=50 y 17% peor a T=200. Para el seasonal RW ($Y_t = Y_{t-12} + \varepsilon_t$), el pronóstico óptimo es exactamente $\hat{y}_{T+h} = y_{T+h-12}$, que es lo que produce Seasonal Naive. La brecha *disminuye* con T (74%→17%): Chronos mejora con más contexto pero nunca alcanza el óptimo. A T=50, Chronos tiene sobrecobertura extrema (0.999) con CRPS=2.166 y width_95=20.82 — incertidumbre masivamente sobreestimada. A T=200, se calibra mejor (cov_95=0.941) pero RMSE sigue siendo mayor. **Conclusión: SeasonalNaive domina. La comparación 1.16 vs 1.17 ilustra la diferencia fundamental entre estacionalidad determinística (Chronos supera al naive) y estocástica (Chronos inferior).**
 
 > **Nota metodológica:** SeasonalNaiveModel no provee intervalos de predicción.
 
@@ -285,67 +264,74 @@ Ventaja ETS: 22% a T=50, 32% a T=200. La brecha crece, consistente con exp 1.13.
 
 ### Exp 1.18 — ETS(A,A,A): tendencia + estacionalidad
 
-| | T=50 | T=200 |
-|---|---|---|
-| ETS(A,A,A) RMSE | 2.521 | 2.295 |
-| Chronos-2 RMSE  | 3.533 | 3.097 |
-| ETS(A,A,A) CRPS | 1.679 | 1.532 |
-| Chronos-2 CRPS  | 2.249 | 2.029 |
+| Modelo | T | RMSE | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|
+| ETS(A,A,A) | 50  | **2.521** | **1.984** | **1.679** | 0.529 | 0.664 | 8.35  | 31.15 |
+| Chronos-2  | 50  | 3.533 | 2.861 | 2.249 | 0.630 | 0.941 | 14.84 | **18.96** |
+| ETS(A,A,A) | 200 | **2.295** | **1.843** | **1.532** | 0.921 | **0.980** | 17.24 | **18.07** |
+| Chronos-2  | 200 | 3.097 | 2.405 | 2.029 | 0.686 | 0.933 | 13.61 | 18.07 |
 
-Ventaja ETS: 29% a T=50, 26% a T=200. **La brecha es la más estable del bloque:** no converge ni diverge entre T=50 y T=200. El DGP combina nivel, tendencia y estacionalidad estocásticos — el mayor número de componentes del bloque. ETS sufre el mismo problema de intervalos estrechos con muestras cortas que en 1.14 y 1.15 (cov_95=0.664 a T=50), y lo corrige con T=200 (cov_95=0.980). Chronos tiene bias positivo de 1.12 a T=50, que se reduce a 0.08 a T=200. **Conclusión: ETS(A,A,A) domina con ventaja consistente. La estructura ETS completa necesita un modelo paramétrico para ser bien capturada. Chronos tiene dificultad estimando simultáneamente nivel, tendencia y estacionalidad estocásticos en muestras cortas.**
+ETS domina en RMSE (29% en T=50, 26% en T=200) y CRPS. La brecha es la más estable del bloque. Sin embargo, en Winkler a T=50, **Chronos gana** (18.96 vs 31.15) porque ETS tiene subcovertura severa (cov_95=0.664, cov_80=0.529) — el modelo necesita suficiente historia para calibrar los tres componentes estocásticos (nivel, tendencia, estacionalidad). A T=200, ETS corrige la calibración (cov_95=0.980) y los Winkler quedan empatados (~18.07). Chronos tiene bias=+1.12 a T=50 que desaparece a T=200. **Conclusión: ETS(A,A,A) domina en precisión en ambos T; sus intervalos a T=50 son no confiables (Winkler peor). La estructura completa ETS requiere muestra para calibrar bien.**
 
 ---
 
 ### Exp 1.19 — Tendencia lineal pura (Theta)
 
-| | T=50 | T=200 |
-|---|---|---|
-| Theta RMSE       | 1.412 | 1.333 |
-| Chronos-2 RMSE   | 1.986 | 1.030 |
-| Theta bias       | +0.719 | +0.712 |
-| Chronos-2 bias   | +1.535 | +0.041 |
-| Theta CRPS       | 1.132 | 1.118 |
-| Chronos-2 CRPS   | 1.600 | 0.773 |
+| Modelo | T | RMSE | BIAS | MAE | CRPS | COV_80 | COV_95 | WIDTH_95 | WINKLER_95 |
+|---|---|---|---|---|---|---|---|---|---|
+| Theta     | 50  | **1.468** | −0.58 | **1.180** | **1.286** | **0.965** | **0.987** | 17.62 | 18.01 |
+| Chronos-2 | 50  | 1.986 | +1.54 | 1.719 | 1.600 | 0.846 | 0.997 | **13.59** | **13.71** |
+| Theta     | 200 | 7.892 | −7.63 | 7.666 | 5.538 | 0.272 | 0.640 | 17.95 | 61.33 |
+| Chronos-2 | 200 | **1.030** | +0.04 | **0.820** | **0.773** | **0.776** | **0.980** | **6.43** | **6.75** |
 
-**La mayor inversión del bloque.** Theta gana a T=50 (29%), Chronos gana a T=200 (23%). Dos fenómenos se solapan:
+**La mayor inversión del bloque.** A T=50: Theta gana en RMSE (26%), MAE y CRPS. A T=200: **Theta falla catastróficamente** — RMSE=7.892, bias=−7.633, cov_95=0.640, Winkler_95=61.33. Chronos gana por factor 7.7× en RMSE y 9× en Winkler a T=200.
 
-1. **Sesgo sistemático de Theta (+0.71, invariante a T):** Para el DGP $Y_t = 0.1t + \varepsilon_t$, el método Theta con θ=2 produce sistemáticamente un sesgo positivo estable. Esto no es un artifact numérico — persiste con T=200 aunque se reduzca levemente. El método Theta sobreestima el nivel al proyectar la línea theta de orden 2. Con intervalos width_95 ≈ 15.5 en ambos T y cov_95 ≈ 0.997, el modelo cubre el sesgo pero con intervalos extremadamente inflados.
+El comportamiento de Theta:
+- A T=50: bias=−0.58 (moderado), Chronos sobre-extrapola (bias=+1.54). Theta más preciso pero con intervalos 95% inflados (width=17.62) que dan cobertura casi perfecta (0.987). Winkler ligeramente peor que Chronos.
+- A T=200: **Theta colapsa completamente**. bias=−7.63 invariante al horizonte, sugiriendo que Theta usa la media global de la serie (~10 para Y_t=0.1t) como nivel de predicción en lugar del nivel actual (~20). Los intervalos mantienen width≈18 (idénticos a T=50) pero la cobertura cae a 0.640 en 95% porque el sesgo supera el radio del intervalo.
 
-2. **Convergencia MLE (warning en producción):** El optimizador de statsmodels no converge en algunas réplicas porque la superficie MLE es plana para α cercano a 0 (óptimo para ruido puro). El warning aparece porque α≈0 es óptimo para este DGP (tendencia sin ruido AR residual) y la superficie de log-verosimilitud es plana en ese punto; no genera errores numéricos relevantes en los resultados.
+La causa probable es la superficie MLE plana (α→0 óptimo para tendencia sin componente AR residual): el optimizador de statsmodels convierte en un nivel constante estimado sobre la serie entera, ignorando que el nivel actual es el doble de la media histórica.
 
-3. **Chronos aprende la tendencia con T=200:** A T=200, Chronos identifica el slope 0.1 con bias ≈ 0.04, produciendo RMSE mucho menor. Con T=50 el contexto es insuficiente (bias=1.53 — sobre-extrapola la tendencia).
-
-**Conclusión: reversión completa según T. Con muestra corta, Theta es más robusto zero-shot que Chronos. Con muestra larga, Chronos aprende el slope mejor que Theta (que mantiene sesgo estructural). El DGP de tendencia lineal pura no es el habitat natural de Theta — el método fue diseñado para series M-competition con más complejidad. El modelo óptimo aquí sería una regresión OLS pura o ARIMA(0,1,1) con drift.**
+**Conclusión: Chronos domina abrumadoramente a T=200 en todas las métricas. Theta falla estructuralmente porque su mecanismo de suavizamiento colapsa hacia la media histórica con series de tendencia pura y muestras largas. A T=50, Theta es más robusto.**
 
 ---
 
-## Resumen comparativo (Exps 1.13–1.19)
+## Resumen comparativo — Exps 1.13–1.19
 
-| Exp | DGP | T=50 ganador | T=200 ganador | Diferencia RMSE (T=200) |
-|-----|-----|-------------|---------------|------------------------|
-| 1.13 | Local level | ETS (~1%) | ETS (7%) | Pequeña, creciente |
-| 1.14 | Local trend | ETS (22%) | ETS (32%) | Grande, creciente |
-| 1.15 | Damped trend | **Chronos (8%)** | ETS (8%) | Pequeña, inversión con T |
-| 1.16 | Estac. determinística | **Chronos (12%)** | **Chronos (28%)** | **Grande, creciente** |
-| 1.17 | Seasonal RW | SeasonalNaive (15%) | SeasonalNaive (42%) | **Grande, creciente** |
-| 1.18 | ETS(A,A,A) | ETS (29%) | ETS (26%) | Grande, estable |
-| 1.19 | Tendencia lineal | Theta (29%) | **Chronos (23%)** | Moderada, inversión con T |
+| Exp | DGP | T=50 ganador (RMSE) | T=200 ganador (RMSE) | Nota calibración |
+|-----|-----|---------------------|----------------------|-----------------|
+| 1.13 | Local level | ETS (1%) | ETS (7%) | Chronos sobrecobertura T=50 |
+| 1.14 | Local trend | ETS (22%) | ETS (24%) | ETS subcov T=50 → Winkler peor |
+| 1.15 | Damped trend | **Chronos (8%)** | ETS (7%) | Inversión; ETS subcov T=50 |
+| 1.16 | Estac. determ. s=12 | **Chronos (12%)** | **Chronos (28%)** | Chronos sobrecobertura T=50 |
+| 1.17 | Seasonal RW s=12 | SN (74%) | SN (17%) | Chronos sobrecobertura T=50 |
+| 1.18 | ETS(A,A,A) | ETS (29%) | ETS (26%) | ETS subcov T=50 → Winkler peor |
+| 1.19 | Tendencia lineal | Theta (26%) | **Chronos (667%)** | Theta colapsa a T=200 |
 
 ---
 
-## Conclusiones transversales del bloque ETS/Theta/Seasonal
+## Conclusiones transversales
 
-### 8. Los modelos ETS dominan sus DGPs nativos, con mayor margen que los modelos ARIMA
-ETS(A,N,N), ETS(A,A,N) y ETS(A,A,A) superan a Chronos con ventajas de 7–32%, mayores que las observadas en el bloque ARIMA (1–11% salvo exp 1.7). La estructura state-space de ETS y la de los DGPs son exactamente equivalentes, lo que produce la mayor ventaja teórica posible.
+### 1. Los modelos clásicos dominan en su DGP nativo en todas las métricas principales
+Cuando el modelo clásico está correctamente especificado, supera a Chronos en RMSE, MAE y CRPS en todos los experimentos excepto exp 1.4 (misspecificación) y 1.16 (benchmark subóptimo). Las ventajas son más pronunciadas en CRPS que en RMSE: incluso cuando el error puntual es similar, las distribuciones predictivas de Chronos son peores (más dispersas o mal calibradas).
 
-### 9. La estacionalidad determinística invierte el resultado: Chronos supera a Seasonal Naive (exp 1.16)
-Seasonal Naive usa solo el último ciclo observado — subóptimo para estacionalidad determinística fija. Chronos promedia implícitamente sobre múltiples ciclos, mejorando con T. Esto complementa el hallazgo de exp 1.7: Chronos maneja mejor la estacionalidad *determinística* pero peor la *estocástica*.
+### 2. Chronos es robusto ante misspecificaciones del modelo clásico
+El caso más notable es el drift en exp 1.4: Chronos identifica el drift desde el contexto de la serie sin estimarlo explícitamente, reduciendo su RMSE de 5.66 a 3.84 entre T=50 y T=200. Esto sugiere que en aplicaciones reales con especificación incierta, Chronos puede ser más robusto.
 
-### 10. La estacionalidad no estacionaria sigue siendo el talón de Aquiles de Chronos (exp 1.17)
-El seasonal random walk reproduce el patrón adverso de exp 1.7: Chronos empeora con más contexto (RMSE 1.40→2.07). La conclusión 3 del bloque ARIMA se confirma y generaliza.
+### 3. La doble integración estacional es el talón de Aquiles de Chronos (exps 1.7 y 1.17)
+Exp 1.7 y 1.17 muestran que la no-estacionariedad estacional es estructuralmente difícil para Chronos: la brecha frente al modelo clásico es grande (~40-45% en RMSE) y estable con T. En ambos experimentos, más contexto no ayuda a Chronos.
 
-### 11. Theta tiene sesgo estructural en DGPs de tendencia lineal pura
-El sesgo +0.71 de Theta es invariante a T, lo que limita su utilidad para el DGP de exp 1.19. En muestras cortas el bias importa menos que la varianza (Theta gana en T=50); en muestras largas Chronos elimina el bias y domina. La convergencia MLE del Theta es un problema adicional para esta clase de DGPs.
+### 4. Las brechas en RMSE no convergen uniformemente con T
+En experimentos con DGPs estacionarios (1.1, 1.6, 1.9–1.12), la ventaja del modelo clásico se comprime de T=50 a T=200. Sin embargo, en los experimentos con integración (1.3, 1.7) o componentes múltiples (1.13–1.14, 1.18), la brecha se mantiene o crece. La hipótesis "más contexto cierra la brecha" es solo parcialmente verdadera.
 
-### 12. Los intervalos ETS son poco confiables con muestras cortas en DGPs no estacionarios
-En los exps 1.14, 1.15 y 1.18 con T=50, ETS produce cov_95 entre 0.66 y 0.71 — subcovertura severa. El modelo necesita suficiente historia para calibrar bien la varianza predictiva de los estados estocásticos. Con T=200 la cobertura se normaliza (0.96–0.99). Esto tiene implicancias para el uso de ETS en series cortas.
+### 5. CRPS y Winkler revelan brechas ocultas por el RMSE
+En los experimentos GARCH (1.9–1.12), el RMSE converge a paridad a T=200, pero la brecha en CRPS sigue siendo ~20-25%: Chronos produce distribuciones predictivas más anchas de lo necesario. El Winkler penaliza explícitamente este exceso: Chronos con sobrecobertura y grandes intervalos puede tener peor Winkler que un modelo con subcovertura moderada.
+
+### 6. ETS y Theta tienen subcovertura severa con muestras cortas
+En exps 1.14, 1.15 y 1.18 con T=50, los modelos ETS tienen cov_95 entre 0.664 y 0.711 — subcovertura severa que resulta en Winkler peor que Chronos a pesar de mejor RMSE. Con T=200 la calibración se normaliza. Theta a T=200 colapsa completamente (exp 1.19). Esto tiene implicancias críticas para el uso de modelos clásicos en series cortas: la precisión puntual puede ser engañosa si los intervalos no son confiables.
+
+### 7. Chronos sobrecobertura sistemáticamente al 95%, con brecha calibrativa característica
+En casi todos los experimentos y ambos T, Chronos tiene cov_95 entre 0.94 y 0.999 — consistentemente por encima del nominal 0.95. Los intervalos son más anchos, los Winkler mayores. La excepción es T=200 en experimentos con DGPs complejos (1.7, 1.17) donde Chronos también puede tener subcovertura al 80%.
+
+### 8. Implicación para la tesis
+Bajo condiciones de laboratorio (DGP conocido, modelo clásico correctamente especificado), los modelos clásicos son el benchmark correcto y superan a Chronos en todas las métricas relevantes. Las excepciones son exp 1.4 (misspecificación deliberada del drift), exp 1.15 a T=50 (parámetro difícil de estimar), exp 1.16 (benchmark subóptimo), y exp 1.19 a T=200 (falla estructural de Theta). En series reales con DGP desconocido, el resultado puede diferir sustancialmente.
