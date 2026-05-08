@@ -1,5 +1,5 @@
 """
-ARCH/GARCH Data Generating Processes.
+ARCH/GARCH/EGARCH Data Generating Processes.
 """
 
 import numpy as np
@@ -171,4 +171,75 @@ class AR1GJRGARCH(BaseDGP):
             "unconditional_variance": uncond_var,
             "effective_persistence": eff_persistence,
             "leverage_gamma": gamma,
+        }
+
+
+class AR1EGARCH(BaseDGP):
+    """
+    AR(1)–EGARCH(1,1) process (Nelson, 1991).
+
+    Mean:     Y_t = phi * Y_{t-1} + eps_t,  eps_t = sigma_t * z_t,  z_t ~ N(0,1)
+    Log-var:  ln(sigma_t^2) = omega
+                              + beta  * ln(sigma_{t-1}^2)
+                              + alpha * (|z_{t-1}| - E[|z|])
+                              + gamma * z_{t-1}
+
+    E[|z|] = sqrt(2/pi) for z ~ N(0,1).
+    gamma < 0 captures the leverage effect (negative shocks raise vol more).
+    """
+
+    _E_ABS_Z = np.sqrt(2.0 / np.pi)
+
+    def simulate(
+        self,
+        T: int,
+        phi: float = 0.3,
+        omega: float = 0.02,
+        beta: float = 0.9,
+        alpha: float = 0.1,
+        gamma: float = -0.05,
+        burn_in: int = 500,
+    ) -> np.ndarray:
+        total_T = T + burn_in
+        z = self.rng.standard_normal(total_T)
+
+        y      = np.empty(total_T)
+        log_s2 = np.empty(total_T)
+        eps    = np.empty(total_T)
+
+        # Unconditional log-variance: omega / (1 - beta)
+        log_s2[0] = omega / (1.0 - beta) if abs(beta) < 1.0 else 0.0
+        eps[0]    = np.exp(0.5 * log_s2[0]) * z[0]
+        y[0]      = eps[0]
+
+        for t in range(1, total_T):
+            z_lag     = z[t - 1]
+            log_s2[t] = (
+                omega
+                + beta  * log_s2[t - 1]
+                + alpha * (abs(z_lag) - self._E_ABS_Z)
+                + gamma * z_lag
+            )
+            eps[t] = np.exp(0.5 * log_s2[t]) * z[t]
+            y[t]   = phi * y[t - 1] + eps[t]
+
+        return y[burn_in:]
+
+    def get_theoretical_properties(
+        self,
+        phi: float = 0.3,
+        omega: float = 0.02,
+        beta: float = 0.9,
+        alpha: float = 0.1,
+        gamma: float = -0.05,
+    ) -> dict:
+        uncond_log_var = omega / (1.0 - beta) if abs(beta) < 1.0 else np.nan
+        return {
+            "mean": 0.0,
+            "egarch_persistence": beta,
+            "leverage_gamma": gamma,
+            "unconditional_log_variance": uncond_log_var,
+            "unconditional_variance": (
+                np.exp(uncond_log_var) if not np.isnan(uncond_log_var) else np.nan
+            ),
         }

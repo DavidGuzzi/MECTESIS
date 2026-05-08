@@ -78,12 +78,14 @@
 | **2.4 VAR(1) con 3 variables** | Matriz $3\times3$ conocida | VAR(1) |
 | **2.5 VAR(1) con 5 variables** | Matriz $5\times5$ conocida | VAR(1) |
 | **2.6 VAR(1) bivariado con volatilidad condicional (ARCH/GARCH diagonal)** | Media: $Y_t = A_1 Y_{t-1} + u_t$, con $A_1$ como en 2.1. Ruido: $u_t = (u_{1t},u_{2t})'$, donde cada componente sigue $u_{it} = \sigma_{it} z_{it}$, $z_{it}\sim N(0,1)$ y $\sigma_{it}^2 = \omega_i + \alpha_i u_{i,t-1}^2 + \beta_i \sigma_{i,t-1}^2$ (GARCH(1,1) por ecuación). | VAR(1) para la media, más GARCH(1,1) univariado por ecuación sobre los residuos (modelo tipo VAR + GARCH diagonal); comparación con VAR(1) estándar sin modelar GARCH para ver impacto de ignorar la volatilidad condicional. |
+| **2.7 VECM bivariado – cointegración rango 1** | $\Delta Y_t = \alpha\,\beta'\,Y_{t-1} + \Gamma_1\,\Delta Y_{t-1} + \varepsilon_t$, $\varepsilon_t \sim N(0, I_2)$. Vector de cointegración $\beta = (1,-1)'$; velocidades de ajuste $\alpha = (-0.4, 0.2)'$; dinámica de corto plazo $\Gamma_1 = \text{diag}(0.3, 0.3)$. Cada serie individualmente es $I(1)$; la combinación $Y_{1t} - Y_{2t}$ es $I(0)$. | VECM (rango 1, estimado por Johansen); comparación con VAR(1) en niveles (ignora cointegración — inconsistente) y VAR(1) en diferencias (pierde la corrección de largo plazo). Librería: `statsmodels.tsa.vector_ar.vecm.VECM`. **Hipótesis**: Chronos-2 sin restricción de cointegración muestra sesgo creciente en $h \geq 6$ al no reproducir la relación de largo plazo. |
 
-Opcionales:
+**Notas sobre Opcionales y Modelos Descartados:**
 
-- Cointegración → VECM  
-- Exógenas → VARMAX  
-- Extensión de volatilidad multivariada → MGARCH (p.ej. BEKK o DCC).
+- **VECM rango 2** (Exp 2.8, opcional): sistema de 3 variables con rango $r=2$; permite testear estimación del rango via `coint_johansen`. Bajo prioridad.
+- **MS-VAR**: no incorporar — `statsmodels` solo cubre MS univariado. Maduro en **R** (`MSwM::msmFit`, `MSBVAR`) y **Matlab/EViews**. El análogo univariado (Exp 1.20 MS-AR) ya captura el fenómeno de switching.
+- **MGARCH (DCC / BEKK)**: no incorporar — sin librería Python activa y robusta. Maduro en **R** (`rmgarch` de Ghalanos, `ccgarch`, `MTS`) y **Matlab** (`Econometrics Toolbox`). El Exp 2.6 (GARCH diagonal) cubre el caso implementable.
+- **VARMAX extendido**: no ampliar más allá de Exp 3.4 — `statsmodels.VARMAX` tiene problemas de estabilidad con $k>3$ o $p>1$. Maduro en **R** (`vars::VAR` con `exogen`, `MTS`).
 
 ---
 
@@ -100,6 +102,7 @@ Opcionales:
 | **3.3 ARIMAX con dos covariables** | $Y_t = \phi Y_{t-1} + \beta_1X_{1t} + \beta_2X_{2t} + \varepsilon_t$ | SARIMAX(1,0,0) |
 | **3.4 VARX bivariado** | $Y_t = A Y_{t-1} + \gamma X_t + \varepsilon_t$ | VARMAX(1) + exógena |
 | **3.5 ARIMAX con volatilidad condicional (ARIMAX–GARCH)** | Media: $Y_t = 0.6Y_{t-1} + 0.5X_t + \varepsilon_t$. Ruido: $\varepsilon_t = \sigma_t z_t$, $z_t\sim N(0,1)$, con $\sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2$ (GARCH(1,1)). Opcional: permitir que $X_t$ también afecte la varianza vía un término $\delta X_t^2$ en la ecuación de $\sigma_t^2$. | ARIMAX (estimado como SARIMAX con exógenas) para la media, y GARCH(1,1) univariado sobre residuos para la varianza condicional; comparación con ARIMAX homocedástico para medir el efecto de modelar explícitamente la volatilidad. |
+| **3.6 ADL-ECM – covariable cointegrada** | $X_t = X_{t-1} + u_t$, $u_t \sim N(0,1)$ (random walk). $Y_t = X_t + z_t$, $z_t = 0.7\,z_{t-1} + \eta_t$, $\eta_t \sim N(0,1)$. Equivalente ECM: $\Delta Y_t = -0.3(Y_{t-1} - X_{t-1}) + \Delta X_t + \eta_t$. Ambas series son $I(1)$; la relación $Y_t - X_t \sim I(0)$ es la cointegración de ecuación única (Engle–Granger). | ARDL/ECM ecuación única (core) — `statsmodels.tsa.ardl.ARDL` + transformación ECM; comparación con SARIMAX en diferencias (pierde largo plazo) y SARIMAX en niveles sin restricción (regresión espuria); Chronos-2 universal condicionando en $X_t$. **Nota**: $X_t$ debe ser provista como exógena futura — testea si Chronos-2 descubre la relación de largo plazo sin especificación explícita. |
 
 
 ---

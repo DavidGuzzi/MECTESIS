@@ -25,9 +25,10 @@ def code(source):
 
 # ─── Cell 0: Title ────────────────────────────────────────────────────────────
 c0 = md(
-    "# Experimentos Univariados 1.1–1.19\n\n"
+    "# Experimentos Univariados 1.1–1.21\n\n"
     "**Tesis MEC** — Comparación TSFMs vs Modelos Clásicos bajo DGPs controlados  \n"
     "**Setup:** T ∈ {50, 200} | H = 24 | R_LIST = [500] | Semilla = 3649  \n"
+    "**Nota:** Exp 1.20 (MS-AR) es computacionalmente intensivo (~10–30 min con R=500, T=200).  \n"
     "**Métricas punto:** Bias, Varianza, MSE, RMSE, MAE  \n"
     "**Métricas probabilísticas:** CRPS, Cobertura 80%/95%, Amplitud 80%/95%, Winkler Score 80%/95%  \n"
     "**Resultados:** guardados en `results/univariate/` — si existen se cargan sin re-simular\n\n"
@@ -48,14 +49,16 @@ c1 = code(
     "\n"
     "from mectesis.dgp import (\n"
     "    AR1, RandomWalk, AR1WithTrend, SeasonalDGP, AR1WithBreak,\n"
-    "    AR1ARCH, AR1GARCH, PureGARCH, AR1GJRGARCH,\n"
+    "    AR1ARCH, AR1GARCH, PureGARCH, AR1GJRGARCH, AR1EGARCH,\n"
+    "    MarkovSwitchingAR,\n"
     "    LocalLevelDGP, LocalTrendDGP, DampedTrendDGP,\n"
     "    DeterministicSeasonalDGP, SeasonalRandomWalkDGP, LocalLevelSeasonalDGP,\n"
     ")\n"
     "from mectesis.models import (\n"
     "    ARIMAModel, ChronosModel,\n"
     "    SARIMAModel, ARIMAWithTrendModel, ARIMAWithBreakModel,\n"
-    "    ARARCHModel, ARGARCHModel, GARCHModel, ARGJRGARCHModel,\n"
+    "    ARARCHModel, ARGARCHModel, GARCHModel, ARGJRGARCHModel, AREGARCHModel,\n"
+    "    MarkovSwitchingARModel,\n"
     "    SeasonalNaiveModel, ETSModel, ThetaModel,\n"
     ")\n"
     "from mectesis.simulation import MonteCarloEngine\n"
@@ -476,6 +479,43 @@ EXPS = [
             "**Core:** Theta, Chronos-2"
         ),
         "Tendencia lineal — Theta",
+    ),
+    (
+        "1.20",
+        "MarkovSwitchingAR",
+        {"mu": (0.5, -0.5), "phi": (0.3, 0.8), "sigma": (1.0, 1.5), "p00": 0.9, "p11": 0.85},
+        "lambda T: [MarkovSwitchingARModel(k_regimes=2, order=1), ARIMAModel((1,0,0)), chronos]",
+        (
+            "**DGP:** AR(1) Markov Switching — 2 regímenes latentes  \n"
+            "$$Y_t = \\mu_{S_t} + \\phi_{S_t}\\,Y_{t-1} + \\sigma_{S_t}\\,\\varepsilon_t$$\n"
+            "$$P = \\begin{pmatrix}0.9 & 0.1 \\\\ 0.15 & 0.85\\end{pmatrix}$$\n\n"
+            "| Régimen | $\\mu$ | $\\phi$ | $\\sigma$ | Duración media |\n"
+            "|---------|-------|--------|----------|----------------|\n"
+            "| 0 (expansión) | 0.5 | 0.3 | 1.0 | 10 períodos |\n"
+            "| 1 (contracción) | −0.5 | 0.8 | 1.5 | ~7 períodos |\n\n"
+            "**Core:** MS-AR(1) — `statsmodels.MarkovAutoregression`  \n"
+            "**Adicional:** ARIMA(1,0,0) (misspecificado — ignora el switching)  \n"
+            "**Chronos-2:** sin mecanismo de detección de regímenes latentes  \n\n"
+            "> **Nota computacional:** estimación EM de MS-AR es lenta (~10–30 min con R=500, T=200)."
+        ),
+        "AR(1) Markov Switching",
+    ),
+    (
+        "1.21",
+        "AR1EGARCH",
+        {"phi": 0.3, "omega": 0.02, "beta": 0.9, "alpha": 0.1, "gamma": -0.05},
+        "lambda T: [AREGARCHModel(), ARGARCHModel(), chronos]",
+        (
+            "**DGP:** AR(1)–EGARCH(1,1) con efecto leverage (Nelson, 1991)  \n"
+            "$$Y_t = 0.3\\,Y_{t-1} + \\varepsilon_t, \\quad "
+            "\\varepsilon_t = \\sigma_t z_t$$\n"
+            "$$\\ln\\sigma_t^2 = 0.02 + 0.9\\ln\\sigma_{t-1}^2 "
+            "+ 0.1\\bigl(|z_{t-1}| - \\sqrt{2/\\pi}\\bigr) - 0.05\\,z_{t-1}$$\n\n"
+            "**Core:** AR(1)+EGARCH(1,1,1) — forecasts por simulación  \n"
+            "**Adicional:** AR(1)+GARCH(1,1) (misspecificado — ignora asimetría en log-varianza)  \n"
+            "**Chronos-2:** sin modelado explícito de volatilidad condicional asimétrica"
+        ),
+        "AR(1)–EGARCH(1,1) con leverage",
     ),
 ]
 

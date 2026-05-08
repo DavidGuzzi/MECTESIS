@@ -1,5 +1,5 @@
 """
-ARCH/GARCH forecasting models using the arch library (Kevin Sheppard).
+ARCH/GARCH/EGARCH forecasting models using the arch library (Kevin Sheppard).
 """
 
 import warnings
@@ -292,3 +292,98 @@ class ARGJRGARCHModel(BaseModel):
     @property
     def name(self) -> str:
         return f"AR({self.ar_lags})+GJR-GARCH({self.p},{self.o},{self.q})"
+
+
+class AREGARCHModel(BaseModel):
+    """
+    AR(p)+EGARCH(p,o,q) model — core for Exp 1.21.
+
+    Nelson's (1991) EGARCH models log-variance, ensuring positivity without
+    sign restrictions. Multi-step variance forecasts use arch's simulation
+    method since no analytic closed form exists for h > 1.
+
+    Intervals and CRPS use the simulated predictive distribution:
+    mean ± z * std where std = sqrt(Var[Y_{T+h} | Y_T]) across simulations.
+    """
+
+    def __init__(
+        self,
+        ar_lags: int = 1,
+        p: int = 1,
+        o: int = 1,
+        q: int = 1,
+        n_sim: int = 200,
+    ):
+        self.ar_lags = ar_lags
+        self.p = p
+        self.o = o
+        self.q = q
+        self.n_sim = n_sim
+        self._fitted     = None
+        self._fit_failed = False
+        self._scale      = 100.0
+        self._fc_cache   = {}
+
+    def fit(self, y_train: np.ndarray, **kwargs):
+        self._fc_cache   = {}
+        self._fit_failed = False
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            am = arch_model(
+                y_train * self._scale,
+                mean='AR', lags=self.ar_lags,
+                vol='EGARCH', p=self.p, o=self.o, q=self.q,
+                dist='normal', rescale=False,
+            )
+            self._fitted = am.fit(disp='off')
+        if self._fitted.convergence_flag != 0:
+            self._fit_failed = True
+
+    def _get_forecast(self, horizon: int):
+        if horizon not in self._fc_cache:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                self._fc_cache[horizon] = self._fitted.forecast(
+                    horizon=horizon,
+                    method='simulation',
+                    simulations=self.n_sim,
+                    reindex=False,
+                )
+        return self._fc_cache[horizon]
+
+    def forecast(self, horizon: int, **kwargs) -> np.ndarray:
+        if self._fit_failed or self._fitted is None:
+            return np.full(horizon, np.nan)
+        return self._get_forecast(horizon).mean.values[-1] / self._scale
+
+    @property
+    def supports_intervals(self) -> bool:
+        return True
+
+    def forecast_intervals(self, horizon: int, level: float = 0.95):
+        if self._fit_failed or self._fitted is None:
+            nan = np.full(horizon, np.nan)
+            return nan, nan
+        fc      = self._get_forecast(horizon)
+        mean_fc = fc.mean.values[-1] / self._scale
+        var_fc  = fc.variance.values[-1] / (self._scale ** 2)
+        std_fc  = np.sqrt(np.maximum(var_fc, 0.0))
+        z       = _z(level)
+        return mean_fc - z * std_fc, mean_fc + z * std_fc
+
+    @property
+    def supports_crps(self) -> bool:
+        return True
+
+    def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        if self._fit_failed or self._fitted is None:
+            return np.full(horizon, np.nan)
+        from properscoring import crps_gaussian
+        fc      = self._get_forecast(horizon)
+        mean_fc = fc.mean.values[-1] / self._scale
+        std_fc  = np.maximum(np.sqrt(fc.variance.values[-1]) / self._scale, 1e-8)
+        return crps_gaussian(y_true, mean_fc, std_fc)
+
+    @property
+    def name(self) -> str:
+        return f"AR({self.ar_lags})+EGARCH({self.p},{self.o},{self.q})"
