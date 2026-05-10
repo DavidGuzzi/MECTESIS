@@ -10,6 +10,8 @@ from .garch_model import ARARCHModel, ARGARCHModel, GARCHModel, ARGJRGARCHModel,
 from .markov_switching_model import MarkovSwitchingARModel
 from .ets_model import ETSModel
 from .theta_model import ThetaModel
+from .var_model import VARModel, VECMModel, VARGARCHDiagonalModel
+from .chronos_multivariate import ChronosMultivariateModel, ChronosPerVarModel
 
 __all__ = [
     "BaseModel",
@@ -29,4 +31,9 @@ __all__ = [
     "MarkovSwitchingARModel",
     "ETSModel",
     "ThetaModel",
+    "VARModel",
+    "VECMModel",
+    "VARGARCHDiagonalModel",
+    "ChronosMultivariateModel",
+    "ChronosPerVarModel",
 ]

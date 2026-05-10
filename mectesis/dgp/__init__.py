@@ -12,6 +12,8 @@ from .ets_dgps import (
     LocalLevelDGP, LocalTrendDGP, DampedTrendDGP,
     DeterministicSeasonalDGP, SeasonalRandomWalkDGP, LocalLevelSeasonalDGP,
 )
+from .var_dgp import VARDGP, VARGARCHDiagonalDGP
+from .vecm_dgp import VECMBivariateDGP
 
 __all__ = [
     "BaseDGP",
@@ -20,4 +22,5 @@ __all__ = [
     "MarkovSwitchingAR",
     "LocalLevelDGP", "LocalTrendDGP", "DampedTrendDGP",
     "DeterministicSeasonalDGP", "SeasonalRandomWalkDGP", "LocalLevelSeasonalDGP",
+    "VARDGP", "VARGARCHDiagonalDGP", "VECMBivariateDGP",
 ]
