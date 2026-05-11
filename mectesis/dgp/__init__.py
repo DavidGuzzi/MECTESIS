@@ -14,6 +14,10 @@ from .ets_dgps import (
 )
 from .var_dgp import VARDGP, VARGARCHDiagonalDGP
 from .vecm_dgp import VECMBivariateDGP
+from .arimax_dgp import ARIMAX_DGP, ARIMAX2Cov_DGP, ARIMAX_GARCH_DGP
+from .varx_dgp import VARX_DGP
+from .adl_ecm_dgp import ADL_ECM_DGP
+from .gp_dgp import GPKernelSynthDGP
 
 __all__ = [
     "BaseDGP",
@@ -23,4 +27,8 @@ __all__ = [
     "LocalLevelDGP", "LocalTrendDGP", "DampedTrendDGP",
     "DeterministicSeasonalDGP", "SeasonalRandomWalkDGP", "LocalLevelSeasonalDGP",
     "VARDGP", "VARGARCHDiagonalDGP", "VECMBivariateDGP",
+    "ARIMAX_DGP", "ARIMAX2Cov_DGP", "ARIMAX_GARCH_DGP",
+    "VARX_DGP",
+    "ADL_ECM_DGP",
+    "GPKernelSynthDGP",
 ]

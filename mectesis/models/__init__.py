@@ -12,6 +12,10 @@ from .ets_model import ETSModel
 from .theta_model import ThetaModel
 from .var_model import VARModel, VECMModel, VARGARCHDiagonalModel
 from .chronos_multivariate import ChronosMultivariateModel, ChronosPerVarModel
+from .sarimax_model import SARIMAXModel
+from .varmax_model import VARMAXModel
+from .ardl_model import ARDLModel
+from .chronos_covariate import ChronosCovariateModel, ChronosMultivariateCovariateModel
 
 __all__ = [
     "BaseModel",
@@ -36,4 +40,9 @@ __all__ = [
     "VARGARCHDiagonalModel",
     "ChronosMultivariateModel",
     "ChronosPerVarModel",
+    "SARIMAXModel",
+    "VARMAXModel",
+    "ARDLModel",
+    "ChronosCovariateModel",
+    "ChronosMultivariateCovariateModel",
 ]

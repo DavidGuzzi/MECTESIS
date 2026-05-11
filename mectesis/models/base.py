@@ -59,6 +59,11 @@ class BaseModel(ABC):
         )
 
     @property
+    def supports_covariates(self) -> bool:
+        """True if this model accepts X_train in fit() and X_future in forecast()."""
+        return False
+
+    @property
     def supports_crps(self) -> bool:
         """True if this model implements compute_crps()."""
         return False
