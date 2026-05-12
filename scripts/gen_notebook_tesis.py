@@ -535,12 +535,12 @@ cells.append(md(
 cells.append(code(
     "res_1_1 = load_uni('1.1')\n"
     "styled_table(res_1_1, title='Exp 1.1 — AR(1) φ=0.3')\n"
-    "plot_metrics_horizon(res_1_1, title='Exp 1.1 — AR(1) φ=0.3')\n"
+    "_ = plot_metrics_horizon(res_1_1, title='Exp 1.1 — AR(1) φ=0.3')\n"
 ))
 cells.append(code(
     "make_models_1_1 = lambda T: [ARIMAModel((1,0,0)), chronos_uni]\n"
-    "plot_rep_uni(dgp_1_1, make_models_1_1, {'phi': 0.3},\n"
-    "             title='Exp 1.1 — AR(1) φ=0.3')\n"
+    "_ = plot_rep_uni(dgp_1_1, make_models_1_1, {'phi': 0.3},\n"
+    "                 title='Exp 1.1 — AR(1) φ=0.3')\n"
 ))
 
 # ── Exp 1.4 ──────────────────────────────────────────────────────────────
@@ -557,11 +557,11 @@ cells.append(md(
 cells.append(code(
     "res_1_4 = load_uni('1.4')\n"
     "styled_table(res_1_4, title='Exp 1.4 — RW drift=0.5')\n"
-    "plot_metrics_horizon(res_1_4, title='Exp 1.4 — RW drift=0.5')\n"
+    "_ = plot_metrics_horizon(res_1_4, title='Exp 1.4 — RW drift=0.5')\n"
 ))
 cells.append(code(
     "make_models_1_4 = lambda T: [ARIMAModel((0,1,0)), chronos_uni]\n"
-    "plot_rep_uni(dgp_1_4, make_models_1_4, {'drift': 0.5},\n"
+    "_ = plot_rep_uni(dgp_1_4, make_models_1_4, {'drift': 0.5},\n"
     "             title='Exp 1.4 — RW drift=0.5 (ARIMA sin constante)')\n"
 ))
 
@@ -578,14 +578,14 @@ cells.append(md(
 cells.append(code(
     "res_1_7 = load_uni('1.7')\n"
     "styled_table(res_1_7, title='Exp 1.7 — Seasonal I(1)×I(1)₁₂')\n"
-    "plot_metrics_horizon(res_1_7, title='Exp 1.7 — Seasonal I(1)×I(1)₁₂')\n"
+    "_ = plot_metrics_horizon(res_1_7, title='Exp 1.7 — Seasonal I(1)×I(1)₁₂')\n"
 ))
 cells.append(code(
     "make_models_1_7 = lambda T: [\n"
     "    SARIMAModel((0,1,0), (0,1,0,12)),\n"
     "    chronos_uni,\n"
     "]\n"
-    "plot_rep_uni(dgp_1_7, make_models_1_7, {'s': 12, 'integrated': True},\n"
+    "_ = plot_rep_uni(dgp_1_7, make_models_1_7, {'s': 12, 'integrated': True},\n"
     "             title='Exp 1.7 — Seasonal I(1)×I(1)₁₂')\n"
 ))
 
@@ -603,11 +603,11 @@ cells.append(md(
 cells.append(code(
     "res_1_10 = load_uni('1.10')\n"
     "styled_table(res_1_10, title='Exp 1.10 — AR(1)+GARCH(1,1)')\n"
-    "plot_metrics_horizon(res_1_10, title='Exp 1.10 — AR(1)+GARCH(1,1)')\n"
+    "_ = plot_metrics_horizon(res_1_10, title='Exp 1.10 — AR(1)+GARCH(1,1)')\n"
 ))
 cells.append(code(
     "make_models_1_10 = lambda T: [ARGARCHModel(), chronos_uni]\n"
-    "plot_rep_uni(dgp_1_10, make_models_1_10,\n"
+    "_ = plot_rep_uni(dgp_1_10, make_models_1_10,\n"
     "             {'phi': 0.3, 'omega': 0.1, 'alpha': 0.1, 'beta': 0.8},\n"
     "             title='Exp 1.10 — AR(1)+GARCH(1,1)')\n"
 ))
@@ -627,12 +627,12 @@ cells.append(md(
 cells.append(code(
     "res_1_19 = load_uni('1.19')\n"
     "styled_table(res_1_19, title='Exp 1.19 — Tendencia lineal (Theta)')\n"
-    "plot_metrics_horizon(res_1_19, metrics=('rmse','bias','cov_95','winkler_95'),\n"
+    "_ = plot_metrics_horizon(res_1_19, metrics=('rmse','bias','cov_95','winkler_95'),\n"
     "                     title='Exp 1.19 — Tendencia lineal (Theta)')\n"
 ))
 cells.append(code(
     "make_models_1_19 = lambda T: [ThetaModel(), chronos_uni]\n"
-    "plot_rep_uni(dgp_1_19, make_models_1_19,\n"
+    "_ = plot_rep_uni(dgp_1_19, make_models_1_19,\n"
     "             {'intercept': 0.0, 'trend_coeff': 0.1, 'phi': 0.0},\n"
     "             title='Exp 1.19 — Tendencia lineal (Theta)')\n"
 ))
@@ -664,11 +664,11 @@ cells.append(md(
 cells.append(code(
     "res_2_1 = load_mv('2.1')\n"
     "styled_table(res_2_1, title='Exp 2.1 — VAR(1) bivariado k=2', is_mv=True)\n"
-    "plot_metrics_horizon(res_2_1, title='Exp 2.1 — VAR(1) bivariado k=2', is_mv=True)\n"
+    "_ = plot_metrics_horizon(res_2_1, title='Exp 2.1 — VAR(1) bivariado k=2', is_mv=True)\n"
 ))
 cells.append(code(
     "make_models_2_1 = lambda T: [VARModel(1), chronos_mv, chronos_mv_ind]\n"
-    "plot_rep_mv(dgp_2_1, make_models_2_1, title='Exp 2.1 — VAR(1) k=2')\n"
+    "_ = plot_rep_mv(dgp_2_1, make_models_2_1, title='Exp 2.1 — VAR(1) k=2')\n"
 ))
 
 # ── Exp 2.5 ──────────────────────────────────────────────────────────────
@@ -687,11 +687,11 @@ cells.append(md(
 cells.append(code(
     "res_2_5 = load_mv('2.5')\n"
     "styled_table(res_2_5, title='Exp 2.5 — VAR(1) pentavariado k=5', is_mv=True)\n"
-    "plot_metrics_horizon(res_2_5, title='Exp 2.5 — VAR(1) pentavariado k=5', is_mv=True)\n"
+    "_ = plot_metrics_horizon(res_2_5, title='Exp 2.5 — VAR(1) pentavariado k=5', is_mv=True)\n"
 ))
 cells.append(code(
     "make_models_2_5 = lambda T: [VARModel(1), chronos_mv]\n"
-    "plot_rep_mv(dgp_2_5, make_models_2_5, title='Exp 2.5 — VAR(1) k=5')\n"
+    "_ = plot_rep_mv(dgp_2_5, make_models_2_5, title='Exp 2.5 — VAR(1) k=5')\n"
 ))
 
 # ── Exp 2.7 ──────────────────────────────────────────────────────────────
@@ -711,7 +711,7 @@ cells.append(md(
 cells.append(code(
     "res_2_7 = load_mv('2.7')\n"
     "styled_table(res_2_7, title='Exp 2.7 — VECM cointegrado k=2', is_mv=True)\n"
-    "plot_metrics_horizon(res_2_7, title='Exp 2.7 — VECM cointegrado k=2', is_mv=True)\n"
+    "_ = plot_metrics_horizon(res_2_7, title='Exp 2.7 — VECM cointegrado k=2', is_mv=True)\n"
 ))
 cells.append(code(
     "make_models_2_7 = lambda T: [\n"
@@ -720,7 +720,7 @@ cells.append(code(
     "    chronos_mv,\n"
     "    chronos_mv_ind,\n"
     "]\n"
-    "plot_rep_mv(dgp_2_7, make_models_2_7, title='Exp 2.7 — VECM cointegrado k=2')\n"
+    "_ = plot_rep_mv(dgp_2_7, make_models_2_7, title='Exp 2.7 — VECM cointegrado k=2')\n"
 ))
 
 
@@ -751,14 +751,14 @@ cells.append(md(
 cells.append(code(
     "res_3_1 = load_cov('3.1')\n"
     "styled_table(res_3_1, title='Exp 3.1 — ARIMAX β=0.8')\n"
-    "plot_metrics_horizon(res_3_1, title='Exp 3.1 — ARIMAX β=0.8')\n"
+    "_ = plot_metrics_horizon(res_3_1, title='Exp 3.1 — ARIMAX β=0.8')\n"
 ))
 cells.append(code(
     "make_models_3_1 = lambda T: [\n"
     "    SARIMAXModel((1,0,0)),\n"
     "    chronos_cov1,\n"
     "]\n"
-    "plot_rep_cov(dgp_3_1, make_models_3_1,\n"
+    "_ = plot_rep_cov(dgp_3_1, make_models_3_1,\n"
     "             dgp_params={'phi': 0.6, 'beta': 0.8, 'sigma_y': 1.0, 'sigma_x': 1.0, 'rho_x': 0.7},\n"
     "             title='Exp 3.1 — ARIMAX β=0.8')\n"
 ))
@@ -779,14 +779,14 @@ cells.append(md(
 cells.append(code(
     "res_3_4 = load_mv_cov('3.4')\n"
     "styled_table(res_3_4, title='Exp 3.4 — VARX bivariado', is_mv=True)\n"
-    "plot_metrics_horizon(res_3_4, title='Exp 3.4 — VARX bivariado', is_mv=True)\n"
+    "_ = plot_metrics_horizon(res_3_4, title='Exp 3.4 — VARX bivariado', is_mv=True)\n"
 ))
 cells.append(code(
     "make_models_3_4 = lambda T: [\n"
     "    VARMAXModel(1),\n"
     "    chronos_mv_cov1,\n"
     "]\n"
-    "plot_rep_cov(dgp_3_4, make_models_3_4,\n"
+    "_ = plot_rep_cov(dgp_3_4, make_models_3_4,\n"
     "             dgp_params={},  # VARX_DGP: parámetros en __init__\n"
     "             is_mv=True, var_idx=0,\n"
     "             title='Exp 3.4 — VARX bivariado')\n"
@@ -811,7 +811,7 @@ cells.append(md(
 cells.append(code(
     "res_3_6 = load_cov('3.6')\n"
     "styled_table(res_3_6, title='Exp 3.6 — ADL-ECM cointegrado')\n"
-    "plot_metrics_horizon(res_3_6, metrics=('rmse','crps','cov_95','winkler_95'),\n"
+    "_ = plot_metrics_horizon(res_3_6, metrics=('rmse','crps','cov_95','winkler_95'),\n"
     "                     title='Exp 3.6 — ADL-ECM cointegrado')\n"
 ))
 cells.append(code(
@@ -821,7 +821,7 @@ cells.append(code(
     "    SARIMAXModel((1,0,0), name_suffix='niv. con X'),\n"
     "    chronos_cov1,\n"
     "]\n"
-    "plot_rep_cov(dgp_3_6, make_models_3_6,\n"
+    "_ = plot_rep_cov(dgp_3_6, make_models_3_6,\n"
     "             dgp_params={'alpha_ecm': -0.3, 'sigma': 1.0, 'sigma_x': 1.0},\n"
     "             title='Exp 3.6 — ADL-ECM cointegrado')\n"
 ))
