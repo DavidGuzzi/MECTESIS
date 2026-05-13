@@ -253,7 +253,6 @@ cells.append(code(
     "# ══ Helpers internos ════════════════════════════════════════════════════\n"
     "\n"
     "def _assign_styles(model_names):\n"
-    "    \"\"\"Retorna {name: (color, linestyle)} respetando la paleta de la tesis.\"\"\"\n"
     "    classic_idx = 0\n"
     "    styles = {}\n"
     "    for n in model_names:\n"
@@ -268,25 +267,50 @@ cells.append(code(
     "    return m.name if hasattr(m, 'name') else str(type(m).__name__)\n"
     "\n"
     "def _draw_context(ax, x_tr, y_tr_1d, x_te, y_te_1d, n_context):\n"
-    "    \"\"\"Dibuja los últimos n_context puntos del histórico + ground truth futuro.\"\"\"\n"
-    "    ax.plot(x_tr[-n_context:], y_tr_1d[-n_context:],\n"
-    "            color=C_HIST, lw=1.3, alpha=0.85, label='Histórico')\n"
-    "    ax.plot(x_te, y_te_1d,\n"
-    "            color=C_HIST, lw=1.3, ls='--', alpha=0.6, label='Observado')\n"
+    "    x_all = np.concatenate([x_tr[-n_context:], x_te])\n"
+    "    y_all = np.concatenate([y_tr_1d[-n_context:], y_te_1d])\n"
+    "    ax.plot(x_all, y_all, color=C_HIST, lw=1.3, alpha=0.85, label='Histórico')\n"
     "    ax.axvline(x_tr[-1] + 0.5, color='#999999', ls=':', lw=0.9, alpha=0.7)\n"
+    "\n"
+    "def _shared_legend(fig, axes):\n"
+    "    from matplotlib.patches import Patch\n"
+    "    all_handles, all_labels, seen = [], [], set()\n"
+    "    for row_ax in axes[:, 0]:\n"
+    "        for h, l in zip(*row_ax.get_legend_handles_labels()):\n"
+    "            if l not in seen:\n"
+    "                seen.add(l); all_handles.append(h); all_labels.append(l)\n"
+    "    all_handles.append(Patch(facecolor='#888888', alpha=0.25, label='Intervalo 80%'))\n"
+    "    all_labels.append('Intervalo 80%')\n"
+    "    fig.legend(all_handles, all_labels,\n"
+    "               loc='lower center', ncol=len(all_handles),\n"
+    "               bbox_to_anchor=(0.5, 1.0), fontsize=8.5,\n"
+    "               frameon=True, framealpha=0.9)\n"
+    "\n"
+    "def _get_mc_rmse(mc_results, T, mname, R=500, var_idx=None):\n"
+    "    if mc_results is None:\n"
+    "        return None\n"
+    "    try:\n"
+    "        res_T = mc_results.get((T, R))\n"
+    "        if res_T is None or mname not in res_T:\n"
+    "            return None\n"
+    "        data = res_T[mname]\n"
+    "        if isinstance(data, dict):  # multivariate: {var_idx: DataFrame}\n"
+    "            key = var_idx if (var_idx is not None and var_idx in data) else min(data.keys())\n"
+    "            df = data[key]\n"
+    "        else:\n"
+    "            df = data\n"
+    "        return float(_avg(df).get('rmse', float('nan')))\n"
+    "    except Exception:\n"
+    "        return None\n"
     "\n"
     "\n"
     "# ══ Univariado ══════════════════════════════════════════════════════════\n"
     "\n"
     "def plot_rep_uni(dgp, make_models, dgp_params, T_list=T_LIST,\n"
-    "                 H=H, seed=SEED, title='', n_context=50):\n"
-    "    \"\"\"\n"
-    "    Figura 12/14 style: filas = modelos, columnas = T.\n"
-    "    Intervalo de predicción al 80% sombreado.\n"
-    "    \"\"\"\n"
+    "                 H=H, seed=SEED, title='', n_context=50, mc_results=None):\n"
     "    n_models = len(make_models(T_list[0]))\n"
     "    fig, axes = plt.subplots(n_models, len(T_list),\n"
-    "                             figsize=(12, 3.5 * n_models), squeeze=False)\n"
+    "                             figsize=(13, 2.8 * n_models), squeeze=False)\n"
     "    fig.patch.set_facecolor('white')\n"
     "\n"
     "    for col, T in enumerate(T_list):\n"
@@ -301,6 +325,7 @@ cells.append(code(
     "\n"
     "        for row, m in enumerate(models):\n"
     "            ax = axes[row][col]\n"
+    "            ax.spines[['top', 'right']].set_visible(True)\n"
     "            m.fit(y_train)\n"
     "            y_hat = m.forecast(H)\n"
     "            mname = mnames[row]\n"
@@ -311,12 +336,17 @@ cells.append(code(
     "            if getattr(m, 'supports_intervals', False):\n"
     "                lo, hi = m.forecast_intervals(H, level=0.80)\n"
     "                ax.fill_between(x_te, lo, hi, color=color, alpha=0.15)\n"
-    "            ax.set_title(f'{mname}  |  T={T}    RMSE={rmse_v:.3f}', fontsize=9)\n"
+    "            ax.set_title(mname, fontweight='bold', fontsize=9.5, pad=4)\n"
+    "            _mc_r = _get_mc_rmse(mc_results, T, mname)\n"
+    "            _rmse_str = f'{_mc_r:.3f}' if _mc_r is not None else f'{rmse_v:.3f}*'\n"
+    "            ax.annotate(f'T={T}  |  RMSE={_rmse_str}',\n"
+    "                        xy=(0.99, 0.97), xycoords='axes fraction',\n"
+    "                        ha='right', va='top', fontsize=7.5, color='#555555')\n"
     "            ax.set_xlabel('t', fontsize=8)\n"
-    "            ax.legend(fontsize=7.5, loc='upper left')\n"
     "\n"
-    "    if title: fig.suptitle(title, fontsize=11, y=1.01)\n"
+    "    _shared_legend(fig, axes)\n"
     "    plt.tight_layout()\n"
+    "    fig.subplots_adjust(top=0.93)\n"
     "    plt.show()\n"
     "    return fig\n"
     "\n"
@@ -324,13 +354,10 @@ cells.append(code(
     "# ══ Multivariado ════════════════════════════════════════════════════════\n"
     "\n"
     "def plot_rep_mv(dgp, make_models, T_list=T_LIST,\n"
-    "                H=H, seed=SEED, title='', var_idx=0, n_context=50):\n"
-    "    \"\"\"\n"
-    "    Multivariado: DGP.simulate() → (T, k). Muestra variable var_idx.\n"
-    "    \"\"\"\n"
+    "                H=H, seed=SEED, title='', var_idx=0, n_context=50, mc_results=None):\n"
     "    n_models = len(make_models(T_list[0]))\n"
     "    fig, axes = plt.subplots(n_models, len(T_list),\n"
-    "                             figsize=(12, 3.5 * n_models), squeeze=False)\n"
+    "                             figsize=(13, 2.8 * n_models), squeeze=False)\n"
     "    fig.patch.set_facecolor('white')\n"
     "\n"
     "    for col, T in enumerate(T_list):\n"
@@ -347,6 +374,7 @@ cells.append(code(
     "\n"
     "        for row, m in enumerate(models):\n"
     "            ax = axes[row][col]\n"
+    "            ax.spines[['top', 'right']].set_visible(True)\n"
     "            m.fit(y_train)\n"
     "            y_hat_full = m.forecast(H)  # (H, k)\n"
     "            y_hat = y_hat_full[:, var_idx]\n"
@@ -359,13 +387,17 @@ cells.append(code(
     "                lo_f, hi_f = m.forecast_intervals(H, level=0.80)  # (H, k)\n"
     "                ax.fill_between(x_te, lo_f[:, var_idx], hi_f[:, var_idx],\n"
     "                                color=color, alpha=0.15)\n"
-    "            ax.set_title(f'{mname}  |  T={T}    RMSE Y{var_idx}={rmse_v:.3f}', fontsize=9)\n"
+    "            ax.set_title(mname, fontweight='bold', fontsize=9.5, pad=4)\n"
+    "            _mc_r = _get_mc_rmse(mc_results, T, mname, var_idx=var_idx)\n"
+    "            _rmse_str = f'{_mc_r:.3f}' if _mc_r is not None else f'{rmse_v:.3f}*'\n"
+    "            ax.annotate(f'T={T}  |  RMSE Y{var_idx}={_rmse_str}',\n"
+    "                        xy=(0.99, 0.97), xycoords='axes fraction',\n"
+    "                        ha='right', va='top', fontsize=7.5, color='#555555')\n"
     "            ax.set_xlabel('t', fontsize=8)\n"
-    "            ax.legend(fontsize=7.5, loc='upper left')\n"
     "\n"
-    "    extra = f'  (variable Y{var_idx} mostrada)'\n"
-    "    if title: fig.suptitle(title + extra, fontsize=11, y=1.01)\n"
+    "    _shared_legend(fig, axes)\n"
     "    plt.tight_layout()\n"
+    "    fig.subplots_adjust(top=0.93)\n"
     "    plt.show()\n"
     "    return fig\n"
     "\n"
@@ -373,14 +405,10 @@ cells.append(code(
     "# ══ Covariado ═══════════════════════════════════════════════════════════\n"
     "\n"
     "def plot_rep_cov(dgp, make_models, dgp_params, T_list=T_LIST,\n"
-    "                 H=H, seed=SEED, title='', is_mv=False, var_idx=0, n_context=50):\n"
-    "    \"\"\"\n"
-    "    Covariado: DGP.simulate() → {'y': ..., 'X': ...}.\n"
-    "    is_mv=True si y es (T,k); muestra variable var_idx.\n"
-    "    \"\"\"\n"
+    "                 H=H, seed=SEED, title='', is_mv=False, var_idx=0, n_context=50, mc_results=None):\n"
     "    n_models = len(make_models(T_list[0]))\n"
     "    fig, axes = plt.subplots(n_models, len(T_list),\n"
-    "                             figsize=(12, 3.5 * n_models), squeeze=False)\n"
+    "                             figsize=(13, 2.8 * n_models), squeeze=False)\n"
     "    fig.patch.set_facecolor('white')\n"
     "\n"
     "    for col, T in enumerate(T_list):\n"
@@ -406,6 +434,7 @@ cells.append(code(
     "\n"
     "        for row, m in enumerate(models):\n"
     "            ax = axes[row][col]\n"
+    "            ax.spines[['top', 'right']].set_visible(True)\n"
     "            m.fit(y_train_f, X_train)\n"
     "            y_hat_full = m.forecast(H, X_future=X_future)\n"
     "            if is_mv and np.ndim(y_hat_full) > 1:\n"
@@ -424,13 +453,18 @@ cells.append(code(
     "                if is_mv and np.ndim(lo_f) > 1:\n"
     "                    lo_f, hi_f = lo_f[:, var_idx], hi_f[:, var_idx]\n"
     "                ax.fill_between(x_te, lo_f, hi_f, color=color, alpha=0.15)\n"
-    "            ax.set_title(f'{mname}  |  T={T}    RMSE={rmse_v:.3f}', fontsize=9)\n"
+    "            ax.set_title(mname, fontweight='bold', fontsize=9.5, pad=4)\n"
+    "            _mc_vi = var_idx if is_mv else None\n"
+    "            _mc_r = _get_mc_rmse(mc_results, T, mname, var_idx=_mc_vi)\n"
+    "            _rmse_str = f'{_mc_r:.3f}' if _mc_r is not None else f'{rmse_v:.3f}*'\n"
+    "            ax.annotate(f'T={T}  |  RMSE={_rmse_str}',\n"
+    "                        xy=(0.99, 0.97), xycoords='axes fraction',\n"
+    "                        ha='right', va='top', fontsize=7.5, color='#555555')\n"
     "            ax.set_xlabel('t', fontsize=8)\n"
-    "            ax.legend(fontsize=7.5, loc='upper left')\n"
     "\n"
-    "    extra = f'  (Y{var_idx})' if is_mv else ''\n"
-    "    if title: fig.suptitle(title + extra, fontsize=11, y=1.01)\n"
+    "    _shared_legend(fig, axes)\n"
     "    plt.tight_layout()\n"
+    "    fig.subplots_adjust(top=0.93)\n"
     "    plt.show()\n"
     "    return fig\n"
 ))
@@ -540,7 +574,7 @@ cells.append(code(
 cells.append(code(
     "make_models_1_1 = lambda T: [ARIMAModel((1,0,0)), chronos_uni]\n"
     "_ = plot_rep_uni(dgp_1_1, make_models_1_1, {'phi': 0.3},\n"
-    "                 title='Exp 1.1 — AR(1) φ=0.3')\n"
+    "                 title='Exp 1.1 — AR(1) φ=0.3', mc_results=res_1_1)\n"
 ))
 
 # ── Exp 1.4 ──────────────────────────────────────────────────────────────
@@ -562,7 +596,7 @@ cells.append(code(
 cells.append(code(
     "make_models_1_4 = lambda T: [ARIMAModel((0,1,0)), chronos_uni]\n"
     "_ = plot_rep_uni(dgp_1_4, make_models_1_4, {'drift': 0.5},\n"
-    "             title='Exp 1.4 — RW drift=0.5 (ARIMA sin constante)')\n"
+    "             title='Exp 1.4 — RW drift=0.5 (ARIMA sin constante)', mc_results=res_1_4)\n"
 ))
 
 # ── Exp 1.7 ──────────────────────────────────────────────────────────────
@@ -586,7 +620,7 @@ cells.append(code(
     "    chronos_uni,\n"
     "]\n"
     "_ = plot_rep_uni(dgp_1_7, make_models_1_7, {'s': 12, 'integrated': True},\n"
-    "             title='Exp 1.7 — Seasonal I(1)×I(1)₁₂')\n"
+    "             title='Exp 1.7 — Seasonal I(1)×I(1)₁₂', mc_results=res_1_7)\n"
 ))
 
 # ── Exp 1.10 ─────────────────────────────────────────────────────────────
@@ -609,7 +643,7 @@ cells.append(code(
     "make_models_1_10 = lambda T: [ARGARCHModel(), chronos_uni]\n"
     "_ = plot_rep_uni(dgp_1_10, make_models_1_10,\n"
     "             {'phi': 0.3, 'omega': 0.1, 'alpha': 0.1, 'beta': 0.8},\n"
-    "             title='Exp 1.10 — AR(1)+GARCH(1,1)')\n"
+    "             title='Exp 1.10 — AR(1)+GARCH(1,1)', mc_results=res_1_10)\n"
 ))
 
 # ── Exp 1.19 ─────────────────────────────────────────────────────────────
@@ -634,7 +668,7 @@ cells.append(code(
     "make_models_1_19 = lambda T: [ThetaModel(), chronos_uni]\n"
     "_ = plot_rep_uni(dgp_1_19, make_models_1_19,\n"
     "             {'intercept': 0.0, 'trend_coeff': 0.1, 'phi': 0.0},\n"
-    "             title='Exp 1.19 — Tendencia lineal (Theta)')\n"
+    "             title='Exp 1.19 — Tendencia lineal (Theta)', mc_results=res_1_19)\n"
 ))
 
 
@@ -668,7 +702,7 @@ cells.append(code(
 ))
 cells.append(code(
     "make_models_2_1 = lambda T: [VARModel(1), chronos_mv, chronos_mv_ind]\n"
-    "_ = plot_rep_mv(dgp_2_1, make_models_2_1, title='Exp 2.1 — VAR(1) k=2')\n"
+    "_ = plot_rep_mv(dgp_2_1, make_models_2_1, title='Exp 2.1 — VAR(1) k=2', mc_results=res_2_1)\n"
 ))
 
 # ── Exp 2.5 ──────────────────────────────────────────────────────────────
@@ -691,7 +725,7 @@ cells.append(code(
 ))
 cells.append(code(
     "make_models_2_5 = lambda T: [VARModel(1), chronos_mv]\n"
-    "_ = plot_rep_mv(dgp_2_5, make_models_2_5, title='Exp 2.5 — VAR(1) k=5')\n"
+    "_ = plot_rep_mv(dgp_2_5, make_models_2_5, title='Exp 2.5 — VAR(1) k=5', mc_results=res_2_5)\n"
 ))
 
 # ── Exp 2.7 ──────────────────────────────────────────────────────────────
@@ -720,7 +754,7 @@ cells.append(code(
     "    chronos_mv,\n"
     "    chronos_mv_ind,\n"
     "]\n"
-    "_ = plot_rep_mv(dgp_2_7, make_models_2_7, title='Exp 2.7 — VECM cointegrado k=2')\n"
+    "_ = plot_rep_mv(dgp_2_7, make_models_2_7, title='Exp 2.7 — VECM cointegrado k=2', mc_results=res_2_7)\n"
 ))
 
 
@@ -760,7 +794,7 @@ cells.append(code(
     "]\n"
     "_ = plot_rep_cov(dgp_3_1, make_models_3_1,\n"
     "             dgp_params={'phi': 0.6, 'beta': 0.8, 'sigma_y': 1.0, 'sigma_x': 1.0, 'rho_x': 0.7},\n"
-    "             title='Exp 3.1 — ARIMAX β=0.8')\n"
+    "             title='Exp 3.1 — ARIMAX β=0.8', mc_results=res_3_1)\n"
 ))
 
 # ── Exp 3.4 ──────────────────────────────────────────────────────────────
@@ -789,7 +823,7 @@ cells.append(code(
     "_ = plot_rep_cov(dgp_3_4, make_models_3_4,\n"
     "             dgp_params={},  # VARX_DGP: parámetros en __init__\n"
     "             is_mv=True, var_idx=0,\n"
-    "             title='Exp 3.4 — VARX bivariado')\n"
+    "             title='Exp 3.4 — VARX bivariado', mc_results=res_3_4)\n"
 ))
 
 # ── Exp 3.6 ──────────────────────────────────────────────────────────────
@@ -823,7 +857,7 @@ cells.append(code(
     "]\n"
     "_ = plot_rep_cov(dgp_3_6, make_models_3_6,\n"
     "             dgp_params={'alpha_ecm': -0.3, 'sigma': 1.0, 'sigma_x': 1.0},\n"
-    "             title='Exp 3.6 — ADL-ECM cointegrado')\n"
+    "             title='Exp 3.6 — ADL-ECM cointegrado', mc_results=res_3_6)\n"
 ))
 
 
