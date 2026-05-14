@@ -18,6 +18,8 @@ from .arimax_dgp import ARIMAX_DGP, ARIMAX2Cov_DGP, ARIMAX_GARCH_DGP
 from .varx_dgp import VARX_DGP
 from .adl_ecm_dgp import ADL_ECM_DGP
 from .gp_dgp import GPKernelSynthDGP
+from .arma_general import ARpDGP, MAqDGP, ARMApqDGP, ARMApqWithTrendDGP
+from .threshold_dgps import SETARDGp, LSTARDGp, ESTARDGp
 
 __all__ = [
     "BaseDGP",
@@ -31,4 +33,6 @@ __all__ = [
     "VARX_DGP",
     "ADL_ECM_DGP",
     "GPKernelSynthDGP",
+    "ARpDGP", "MAqDGP", "ARMApqDGP", "ARMApqWithTrendDGP",
+    "SETARDGp", "LSTARDGp", "ESTARDGp",
 ]
