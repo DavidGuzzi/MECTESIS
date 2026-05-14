@@ -19,7 +19,7 @@ class ARIMAModel(BaseModel):
         self._y_train = y_train
         self._fcst_cache = {}
         model = ARIMA(y_train, order=self.order)
-        self.fitted_model = model.fit(**kwargs)
+        self.fitted_model = model.fit(disp=0, **kwargs)
 
     def _get_forecast(self, horizon: int):
         if horizon not in self._fcst_cache:

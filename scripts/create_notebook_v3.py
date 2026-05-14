@@ -41,10 +41,12 @@ from mectesis.models import (
 )
 from mectesis.simulation import MonteCarloEngine
 
-SEED   = 3649
-H      = 24
-R_LIST = [500]
-T_LIST = [25, 50, 100, 200]
+SEED    = 3649
+H_BY_T  = {25: 6, 50: 18, 100: 24, 200: 24}  # horizonte por T total
+H_MAX   = 24                                   # para definir los bloques
+R_LIST  = [500]
+T_LIST  = [25, 50, 100, 200]                   # longitud TOTAL de la serie
+# T_train = T - H_BY_T[T]  (el engine hace y_train = y[:T-H])
 RESULTS = Path("results/univariate_v3")
 RESULTS.mkdir(parents=True, exist_ok=True)
 
@@ -82,24 +84,38 @@ def _load_results(path: Path) -> dict:
 
 
 def run_exp(dgp, make_models_fn, dgp_params, exp_id,
-            T_list=T_LIST, R_list=R_LIST, H=H, seed=SEED):
+            T_list=T_LIST, R_list=R_LIST, H_by_T=None, seed=SEED):
+    \"\"\"
+    T_list: longitudes TOTALES de la serie.
+    El engine hace y_train = y[:T-H] internamente.
+    H_by_T: horizonte por T (por defecto H_BY_T global).
+      T=25 → H=6  (Corto, T_train=19)
+      T=50 → H=18 (Corto+Medio, T_train=32)
+      T=100,200 → H=24 (todos los bloques)
+    \"\"\"
+    if H_by_T is None:
+        H_by_T = H_BY_T
     n_runs = len(T_list) * len(R_list)
-    combos = ", ".join(f"(T={t}, R={r})" for t in T_list for r in R_list)
+    combos = ", ".join(
+        f"(T={t}, H={H_by_T.get(t, H_MAX)}, R={r})"
+        for t in T_list for r in R_list
+    )
     print(f"Exp {exp_id}: {n_runs} ejecución(es) → {combos}")
     all_results = {}
     for T in T_list:
+        h = H_by_T.get(T, H_MAX)
         for R in R_list:
             cache = _cache_path(exp_id, T, R)
             if cache.exists():
-                print(f"  T={T}, R={R}: cargando {cache.name}")
+                print(f"  T={T} H={h}, R={R}: cargando {cache.name}")
                 all_results[(T, R)] = _load_results(cache)
                 continue
-            print(f"  T={T}, R={R}: simulando...", end=" ", flush=True)
+            print(f"  T={T} H={h}, R={R}: simulando...", end=" ", flush=True)
             dgp.rng = np.random.default_rng(seed)
             models = make_models_fn(T)
             engine = MonteCarloEngine(dgp, models, seed=seed)
             t0 = time.time()
-            results = engine.run_monte_carlo(R, T, H, dgp_params, verbose=False)
+            results = engine.run_monte_carlo(R, T, h, dgp_params, verbose=False)
             print(f"OK ({time.time()-t0:.0f}s)")
             _save_results(results, cache)
             all_results[(T, R)] = results
@@ -151,64 +167,50 @@ def build_grid_table(all_results: dict, classical_name: str,
                 for m in ["rmse", "crps"]:
                     cv = float(cl_s[m]) if m in cl_s.index and pd.notna(cl_s[m]) else np.nan
                     hv = float(ch_s[m]) if m in ch_s.index and pd.notna(ch_s[m]) else np.nan
-                    row[f"ratio_{m}_{blk}"] = (
-                        round(cv / hv, 3)
-                        if not (np.isnan(cv) or np.isnan(hv) or hv == 0) else np.nan
-                    )
+                    if np.isnan(cv) or np.isnan(hv):
+                        row[f"best_{m}_{blk}"] = np.nan
+                    else:
+                        row[f"best_{m}_{blk}"] = "C" if cv <= hv else "T"
             rows.append(row)
 
     df_out = pd.DataFrame(rows).set_index(["T", "Modelo"])
-    rmse_cols  = [f"rmse_{b}"      for b, *_ in BLOCK_DEFS if f"rmse_{b}"      in df_out.columns]
-    crps_cols  = [f"crps_{b}"      for b, *_ in BLOCK_DEFS if f"crps_{b}"      in df_out.columns]
-    ratio_cols = [c for c in df_out.columns if c.startswith("ratio_")]
-    style = df_out.style.format(precision=4, na_rep="—")
-    if rmse_cols + crps_cols:
-        style = style.background_gradient(subset=rmse_cols + crps_cols, cmap="YlOrRd")
-    if ratio_cols:
-        style = style.background_gradient(subset=ratio_cols, cmap="RdYlGn")
-    display(style)
+    display(df_out.style.format(precision=4, na_rep="—"))
 
 
-def plot_metrics_v3(all_results: dict, title: str = "",
-                    metrics=("rmse", "crps", "bias")):
-    \"\"\"Métricas vs h=1..24 con bandas de bloque Corto/Medio/Largo y anotaciones.\"\"\"
-    ANNOTATE_AT = {1: "C", 7: "M", 19: "L"}
-    BLK_COLORS  = [(1, 6, "#d4e6f1"), (7, 18, "#d5f5e3"), (19, 24, "#fde8d8")]
-    palette     = ["crimson", "darkorange", "seagreen", "purple", "teal", "steelblue"]
+def plot_simulation_v3(dgp, models, dgp_params, title="", T_vis=100, seed=SEED):
+    \"\"\"1 realización del DGP: histórico + split + observado + forecasts superpuestos.\"\"\"
+    H_vis   = H_BY_T.get(T_vis, H_MAX)
+    old_rng = dgp.rng
+    dgp.rng = np.random.default_rng(seed + 99991)
+    y       = dgp.simulate(T=T_vis, **dgp_params)
+    dgp.rng = old_rng
 
-    keys = sorted(all_results.keys())
-    nrows, ncols = len(metrics), len(keys)
-    fig, axes = plt.subplots(nrows, ncols,
-                             figsize=(7 * ncols, 3.5 * nrows), squeeze=False)
+    split   = T_vis - H_vis
+    y_train = y[:split]
+    y_test  = y[split:]
+    t_train = np.arange(split)
+    t_test  = np.arange(split, T_vis)
 
-    for col, (T, R) in enumerate(keys):
-        for row, metric in enumerate(metrics):
-            ax = axes[row][col]
-            for h1, h2, bc in BLK_COLORS:
-                ax.axvspan(h1 - 0.5, h2 + 0.5, alpha=0.12, color=bc)
-            ax.axvline(6.5,  color="gray", ls=":", lw=0.8, alpha=0.6)
-            ax.axvline(18.5, color="gray", ls=":", lw=0.8, alpha=0.6)
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    ax.plot(t_train, y_train, color="gray", lw=1.5, label="Histórico")
+    ax.axvline(split - 0.5, color="black", ls="--", lw=1, alpha=0.6)
+    ax.plot(t_test, y_test, color="black", lw=1.5, marker="o", ms=3, label="Observado")
 
-            for i, (mname, df) in enumerate(all_results[(T, R)].items()):
-                df_h = df[df["horizon"] != "avg_all"].copy()
-                df_h["horizon"] = pd.to_numeric(df_h["horizon"], errors="coerce")
-                if metric not in df_h.columns:
-                    continue
-                vals  = df_h.set_index("horizon")[metric]
-                color = palette[i % len(palette)]
-                ax.plot(vals.index, vals.values, label=mname, color=color,
-                        lw=1.5, marker="o", ms=3)
-                for h in ANNOTATE_AT:
-                    if h in vals.index and pd.notna(vals[h]):
-                        ax.annotate(f"{vals[h]:.3f}", xy=(h, vals[h]),
-                                    xytext=(3, 4), textcoords="offset points",
-                                    fontsize=7, color=color)
-            ax.set(title=f"T={T} — {metric.upper()}",
-                   xlabel="h", ylabel=metric.upper())
-            ax.legend(fontsize=8)
+    palette = ["steelblue", "darkorange", "seagreen", "purple"]
+    for i, model in enumerate(models):
+        try:
+            model.fit(y_train)
+            fcst = model.forecast(H_vis)
+            c = palette[i % len(palette)]
+            ax.plot(t_test, fcst, color=c, lw=1.5, ls="--", marker="s", ms=3, label=model.name)
+            if getattr(model, "supports_intervals", False):
+                lo, hi = model.forecast_intervals(H_vis, level=0.80)
+                ax.fill_between(t_test, lo, hi, color=c, alpha=0.15)
+        except Exception as e:
+            print(f"  [plot_simulation_v3] {model.name} falló: {e}")
 
-    if title:
-        fig.suptitle(title, fontsize=12, y=1.01)
+    ax.set(title=title, xlabel="t", ylabel="y")
+    ax.legend(fontsize=9)
     plt.tight_layout()
     plt.show()
 """
@@ -269,7 +271,7 @@ dgp = {dgp_expr}
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {{}}, exp_id="A.{suf}")
 print(f"\\n{'='*60}\\nA.{suf} — {desc}\\n{'='*60}")
 build_grid_table(res, classical_name="{cl_name}")
-plot_metrics_v3(res, title="A.{suf} — {desc}")
+plot_simulation_v3(dgp, [cl, chronos], {{}}, title="A.{suf} — {desc}")
 """
 
 
@@ -282,7 +284,7 @@ dgp = ARMApqWithTrendDGP(phis={phis!r}, thetas={thetas!r}, delta={delta}, sigma=
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {{}}, exp_id="B.{suf}")
 print(f"\\n{'='*60}\\nB.{suf} — {desc} (δ={delta})\\n{'='*60}")
 build_grid_table(res, classical_name="{cl_name}")
-plot_metrics_v3(res, title="B.{suf} — {desc} (δ={delta})")
+plot_simulation_v3(dgp, [cl, chronos], {{}}, title="B.{suf} — {desc} (δ={delta})")
 """
 
 
@@ -293,7 +295,8 @@ cells = []
 # Título
 cells.append(md(
     "# Experimentos Univariados v3\n\n"
-    "**Tesis MEC** — Grilla completa: 97 DGPs × T∈{25,50,100,200} × R=500 × H=24  \n"
+    "**Tesis MEC** — Grilla completa: 97 DGPs × T∈{25,50,100,200} × R=500  \n"
+    "**Horizonte por T:** T=25→H=6 (Corto) · T=50→H=18 (Corto+Medio) · T=100,200→H=24 (todos)  \n"
     "**Métricas:** Bias, Varianza, RMSE, CRPS  \n"
     "**Bloques:** Corto h=1–6 · Medio h=7–18 · Largo h=19–24  \n"
     "**Ratio:** RMSE_clásico / RMSE_Chronos (>1 = Chronos gana)  \n"
@@ -344,7 +347,7 @@ dgp = RandomWalk(seed=SEED)
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {"drift": 0.0, "sigma": 1.0}, exp_id="C.1")
 print("\\n" + "="*60 + "\\nC.1 — RW sin drift\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="C.1 — Random Walk sin drift")
+plot_simulation_v3(dgp, [cl, chronos], {"drift": 0.0, "sigma": 1.0}, title="C.1 — Random Walk sin drift")
 """))
 
 cells.append(code("""\
@@ -354,7 +357,7 @@ dgp = RandomWalk(seed=SEED)
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {"drift": 0.05, "sigma": 1.0}, exp_id="C.2")
 print("\\n" + "="*60 + "\\nC.2 — RW drift leve (δ=0.05)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="C.2 — Random Walk drift leve (δ=0.05)")
+plot_simulation_v3(dgp, [cl, chronos], {"drift": 0.05, "sigma": 1.0}, title="C.2 — Random Walk drift leve (δ=0.05)")
 """))
 
 cells.append(code("""\
@@ -364,7 +367,7 @@ dgp = RandomWalk(seed=SEED)
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {"drift": 0.20, "sigma": 1.0}, exp_id="C.3")
 print("\\n" + "="*60 + "\\nC.3 — RW drift fuerte (δ=0.20)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="C.3 — Random Walk drift fuerte (δ=0.20)")
+plot_simulation_v3(dgp, [cl, chronos], {"drift": 0.20, "sigma": 1.0}, title="C.3 — Random Walk drift fuerte (δ=0.20)")
 """))
 
 # ── BLOQUE D ─────────────────────────────────────────────────────────────────
@@ -382,7 +385,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"phi": 0.5, "omega": 0.5, "alpha": 0.10}, exp_id="D.1")
 print("\\n" + "="*60 + "\\nD.1 — AR(1)-ARCH(1) leve\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="D.1 — AR(1)-ARCH(1) leve (α=0.10)")
+plot_simulation_v3(dgp, [cl, chronos], {"phi": 0.5, "omega": 0.5, "alpha": 0.10}, title="D.1 — AR(1)-ARCH(1) leve (α=0.10)")
 """))
 
 cells.append(code("""\
@@ -393,7 +396,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"phi": 0.5, "omega": 0.5, "alpha": 0.50}, exp_id="D.2")
 print("\\n" + "="*60 + "\\nD.2 — AR(1)-ARCH(1) fuerte\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="D.2 — AR(1)-ARCH(1) fuerte (α=0.50)")
+plot_simulation_v3(dgp, [cl, chronos], {"phi": 0.5, "omega": 0.5, "alpha": 0.50}, title="D.2 — AR(1)-ARCH(1) fuerte (α=0.50)")
 """))
 
 cells.append(code("""\
@@ -404,7 +407,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"phi": 0.5, "omega": 0.5, "alpha": 0.10, "beta": 0.40}, exp_id="D.3")
 print("\\n" + "="*60 + "\\nD.3 — AR(1)-GARCH(1,1) baja persistencia\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="D.3 — AR(1)-GARCH(1,1) baja persistencia (α+β=0.50)")
+plot_simulation_v3(dgp, [cl, chronos], {"phi": 0.5, "omega": 0.5, "alpha": 0.10, "beta": 0.40}, title="D.3 — AR(1)-GARCH(1,1) baja persistencia (α+β=0.50)")
 """))
 
 cells.append(code("""\
@@ -415,7 +418,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"phi": 0.5, "omega": 0.1, "alpha": 0.10, "beta": 0.85}, exp_id="D.4")
 print("\\n" + "="*60 + "\\nD.4 — AR(1)-GARCH(1,1) alta persistencia\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="D.4 — AR(1)-GARCH(1,1) alta persistencia (α+β=0.95)")
+plot_simulation_v3(dgp, [cl, chronos], {"phi": 0.5, "omega": 0.1, "alpha": 0.10, "beta": 0.85}, title="D.4 — AR(1)-GARCH(1,1) alta persistencia (α+β=0.95)")
 """))
 
 # ── BLOQUE E ─────────────────────────────────────────────────────────────────
@@ -433,7 +436,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"sigma_eps": 1.0, "sigma_eta": 0.10}, exp_id="E.1")
 print("\\n" + "="*60 + "\\nE.1 — Local Level ETS(A,N,N)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.1 — Local Level ETS(A,N,N)")
+plot_simulation_v3(dgp, [cl, chronos], {"sigma_eps": 1.0, "sigma_eta": 0.10}, title="E.1 — Local Level ETS(A,N,N)")
 """))
 
 cells.append(code("""\
@@ -444,7 +447,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"sigma_eps": 1.0, "sigma_eta": 0.1, "sigma_zeta": 0.05, "b0": 0.1}, exp_id="E.2")
 print("\\n" + "="*60 + "\\nE.2 — LLT leve ETS(A,A,N)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.2 — Local Linear Trend leve (σ_ζ=0.05)")
+plot_simulation_v3(dgp, [cl, chronos], {"sigma_eps": 1.0, "sigma_eta": 0.1, "sigma_zeta": 0.05, "b0": 0.1}, title="E.2 — Local Linear Trend leve (σ_ζ=0.05)")
 """))
 
 cells.append(code("""\
@@ -455,7 +458,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.20, "b0": 0.5}, exp_id="E.3")
 print("\\n" + "="*60 + "\\nE.3 — LLT fuerte ETS(A,A,N)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.3 — Local Linear Trend fuerte (σ_ζ=0.20)")
+plot_simulation_v3(dgp, [cl, chronos], {"sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.20, "b0": 0.5}, title="E.3 — Local Linear Trend fuerte (σ_ζ=0.20)")
 """))
 
 cells.append(code("""\
@@ -466,7 +469,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"phi": 0.9, "sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.1}, exp_id="E.4")
 print("\\n" + "="*60 + "\\nE.4 — Damped Trend ETS(A,Ad,N)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.4 — Damped Trend ETS(A,Ad,N)")
+plot_simulation_v3(dgp, [cl, chronos], {"phi": 0.9, "sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.1}, title="E.4 — Damped Trend ETS(A,Ad,N)")
 """))
 
 cells.append(code("""\
@@ -479,7 +482,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               exp_id="E.5", T_list=[50, 100, 200])  # T=25 muy corto para s=12
 print("\\n" + "="*60 + "\\nE.5 — Seasonal Aditiva s=12 ETS(A,N,A)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.5 — Seasonal Aditiva s=12 ETS(A,N,A)")
+plot_simulation_v3(dgp, [cl, chronos], {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1, "sigma_zeta": 0.0, "sigma_omega": 0.05, "b0": 0.0}, title="E.5 — Seasonal Aditiva s=12 ETS(A,N,A)")
 """))
 
 cells.append(code("""\
@@ -492,7 +495,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               exp_id="E.6", T_list=[50, 100, 200])
 print("\\n" + "="*60 + "\\nE.6 — Trend+Seasonal s=12 ETS(A,A,A)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.6 — Trend+Seasonal s=12 ETS(A,A,A)")
+plot_simulation_v3(dgp, [cl, chronos], {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1, "sigma_zeta": 0.05, "sigma_omega": 0.05, "b0": 0.1}, title="E.6 — Trend+Seasonal s=12 ETS(A,A,A)")
 """))
 
 cells.append(code("""\
@@ -503,7 +506,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"sigma_eps": 1.0, "sigma_eta": 0.1, "sigma_zeta": 0.01, "b0": 0.10}, exp_id="E.7")
 print("\\n" + "="*60 + "\\nE.7 — Theta leve\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.7 — Theta leve (b0=0.10, σ_ζ=0.01)")
+plot_simulation_v3(dgp, [cl, chronos], {"sigma_eps": 1.0, "sigma_eta": 0.1, "sigma_zeta": 0.01, "b0": 0.10}, title="E.7 — Theta leve (b0=0.10, σ_ζ=0.01)")
 """))
 
 cells.append(code("""\
@@ -514,7 +517,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.10, "b0": 0.50}, exp_id="E.8")
 print("\\n" + "="*60 + "\\nE.8 — Theta fuerte\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="E.8 — Theta fuerte (b0=0.50, σ_ζ=0.10)")
+plot_simulation_v3(dgp, [cl, chronos], {"sigma_eps": 1.0, "sigma_eta": 0.2, "sigma_zeta": 0.10, "b0": 0.50}, title="E.8 — Theta fuerte (b0=0.50, σ_ζ=0.10)")
 """))
 
 # ── BLOQUE F ─────────────────────────────────────────────────────────────────
@@ -548,7 +551,7 @@ res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               exp_id="F.{suf}", T_list={t_list})
 print("\\n" + "="*60 + "\\nF.{suf} — {desc}\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="F.{suf} — {desc}")
+plot_simulation_v3(dgp, [cl, chronos], {dgp_params}, title="F.{suf} — {desc}")
 """
     cells.append(code(src))
 
@@ -569,7 +572,7 @@ dgp = SETARDGp(phi1=0.30, phi2=-0.30, threshold=0.0, delay=1, sigma=1.0, seed=SE
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {}, exp_id="G.1")
 print("\\n" + "="*60 + "\\nG.1 — SETAR(2;1) baja persistencia\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="G.1 — SETAR(2;1) φ₁=0.30 / φ₂=-0.30")
+plot_simulation_v3(dgp, [cl, chronos], {}, title="G.1 — SETAR(2;1) φ₁=0.30 / φ₂=-0.30")
 """))
 
 cells.append(code("""\
@@ -579,7 +582,7 @@ dgp = SETARDGp(phi1=0.90, phi2=-0.50, threshold=0.0, delay=1, sigma=1.0, seed=SE
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {}, exp_id="G.2")
 print("\\n" + "="*60 + "\\nG.2 — SETAR(2;1) alta persistencia\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="G.2 — SETAR(2;1) φ₁=0.90 / φ₂=-0.50")
+plot_simulation_v3(dgp, [cl, chronos], {}, title="G.2 — SETAR(2;1) φ₁=0.90 / φ₂=-0.50")
 """))
 
 cells.append(code("""\
@@ -590,7 +593,7 @@ dgp = LSTARDGp(phi1=0.30, phi2=0.90, gamma=2.0, c=0.0, delay=1, sigma=1.0, seed=
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {}, exp_id="G.3")
 print("\\n" + "="*60 + "\\nG.3 — LSTAR(1) asimétrico\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="G.3 — LSTAR(1) φ₁=0.30 / φ₂=0.90 (γ=2)")
+plot_simulation_v3(dgp, [cl, chronos], {}, title="G.3 — LSTAR(1) φ₁=0.30 / φ₂=0.90 (γ=2)")
 """))
 
 cells.append(code("""\
@@ -602,7 +605,7 @@ dgp = ESTARDGp(phi1=0.90, phi2=0.10, gamma=1.0, c=0.0, delay=1, sigma=1.0, seed=
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos], {}, exp_id="G.4")
 print("\\n" + "="*60 + "\\nG.4 — ESTAR(1) simétrico\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
-plot_metrics_v3(res, title="G.4 — ESTAR(1) φ₁=0.90 / φ₂=0.10 (γ=1)")
+plot_simulation_v3(dgp, [cl, chronos], {}, title="G.4 — ESTAR(1) φ₁=0.90 / φ₂=0.10 (γ=1)")
 """))
 
 # ── RESUMEN ───────────────────────────────────────────────────────────────────

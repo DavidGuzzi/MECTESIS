@@ -103,31 +103,44 @@ class MonteCarloEngine:
         # ── Simulation loop ────────────────────────────────────────────────
         t_start = time.time()
         log_every = max(1, n_sim // 10)
+        _fail_counts = {m.name: 0 for m in self.models}
 
         for s in range(n_sim):
             y = self.dgp.simulate(T=T, **dgp_params)
             y_train, y_test = y[:T - horizon], y[T - horizon:]
 
             for model in self.models:
-                model.fit(y_train)
-                y_hat = model.forecast(horizon)
-                error_mats[model.name][s] = y_test - y_hat
+                try:
+                    model.fit(y_train)
+                    y_hat = model.forecast(horizon)
+                    error_mats[model.name][s] = y_test - y_hat
 
-                if model in models_iv:
-                    for level, lk in zip(levels, level_keys):
-                        lo, hi = model.forecast_intervals(horizon, level=level)
-                        cov_mats[model.name][lk][s] = (y_test >= lo) & (y_test <= hi)
-                        wid_mats[model.name][lk][s] = hi - lo
-                        alpha = 1.0 - level
-                        penalty = 2.0 / alpha
-                        winkler_mats[model.name][lk][s] = (
-                            (hi - lo)
-                            + penalty * np.maximum(lo - y_test, 0.0)
-                            + penalty * np.maximum(y_test - hi, 0.0)
-                        )
+                    if model in models_iv:
+                        for level, lk in zip(levels, level_keys):
+                            lo, hi = model.forecast_intervals(horizon, level=level)
+                            cov_mats[model.name][lk][s] = (y_test >= lo) & (y_test <= hi)
+                            wid_mats[model.name][lk][s] = hi - lo
+                            alpha = 1.0 - level
+                            penalty = 2.0 / alpha
+                            winkler_mats[model.name][lk][s] = (
+                                (hi - lo)
+                                + penalty * np.maximum(lo - y_test, 0.0)
+                                + penalty * np.maximum(y_test - hi, 0.0)
+                            )
 
-                if model in models_crps:
-                    crps_mats[model.name][s] = model.compute_crps(y_test, horizon)
+                    if model in models_crps:
+                        crps_mats[model.name][s] = model.compute_crps(y_test, horizon)
+
+                except Exception:
+                    _fail_counts[model.name] += 1
+                    error_mats[model.name][s] = np.nan
+                    if model in models_iv:
+                        for lk in level_keys:
+                            cov_mats[model.name][lk][s] = np.nan
+                            wid_mats[model.name][lk][s] = np.nan
+                            winkler_mats[model.name][lk][s] = np.nan
+                    if model in models_crps:
+                        crps_mats[model.name][s] = np.nan
 
             if verbose and (s + 1) % log_every == 0:
                 elapsed = time.time() - t_start
@@ -139,6 +152,9 @@ class MonteCarloEngine:
 
         if verbose:
             print(f"  ✓ Completado en {time.time() - t_start:.1f}s")
+        for mname, cnt in _fail_counts.items():
+            if cnt > 0:
+                print(f"  ⚠ {mname}: {cnt}/{n_sim} réplicas fallidas (excluidas del cómputo)")
 
         # ── Aggregate metrics ──────────────────────────────────────────────
         results = {}

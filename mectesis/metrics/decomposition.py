@@ -28,11 +28,11 @@ class BiasVarianceMSE:
         -------
         dict with keys: bias, variance, mse, rmse, mae (each shape (horizon,))
         """
-        bias     = errors_matrix.mean(axis=0)
-        variance = errors_matrix.var(axis=0, ddof=1)
-        mse      = (errors_matrix ** 2).mean(axis=0)
+        bias     = np.nanmean(errors_matrix, axis=0)
+        variance = np.nanvar(errors_matrix, axis=0, ddof=1)
+        mse      = np.nanmean(errors_matrix ** 2, axis=0)
         rmse     = np.sqrt(mse)
-        mae      = np.abs(errors_matrix).mean(axis=0)
+        mae      = np.nanmean(np.abs(errors_matrix), axis=0)
 
         return {"bias": bias, "variance": variance, "mse": mse, "rmse": rmse, "mae": mae}
 
@@ -90,8 +90,8 @@ class BiasVarianceMSE:
 
         # CRPS column (right after point metrics)
         if crps_data is not None:
-            row_dict["crps"] = crps_data.mean(axis=0)
-            agg_dict["crps"] = float(crps_data.mean())
+            row_dict["crps"] = np.nanmean(crps_data, axis=0)
+            agg_dict["crps"] = float(np.nanmean(crps_data))
 
         # Interval columns
         for prefix, data in [
@@ -102,8 +102,8 @@ class BiasVarianceMSE:
             if data:
                 for level_key, mat in sorted(data.items()):
                     col = f"{prefix}_{level_key}"
-                    row_dict[col] = mat.mean(axis=0)
-                    agg_dict[col] = mat.mean()
+                    row_dict[col] = np.nanmean(mat, axis=0)
+                    agg_dict[col] = float(np.nanmean(mat))
 
         df = pd.DataFrame(row_dict)
         df_agg = pd.DataFrame([agg_dict])
