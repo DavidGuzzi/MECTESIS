@@ -131,8 +131,10 @@ class MonteCarloEngine:
                     if model in models_crps:
                         crps_mats[model.name][s] = model.compute_crps(y_test, horizon)
 
-                except Exception:
+                except Exception as e:
                     _fail_counts[model.name] += 1
+                    if _fail_counts[model.name] == 1:
+                        print(f"  [!] {model.name} rep={s}: {type(e).__name__}: {e}")
                     error_mats[model.name][s] = np.nan
                     if model in models_iv:
                         for lk in level_keys:
