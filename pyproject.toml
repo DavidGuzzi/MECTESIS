@@ -6,6 +6,21 @@ build-backend = "setuptools.build_meta"
 name = "mectesis"
 version = "0.1.0"
 requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "statsmodels>=0.14",
+    "arch>=6.0",
+    "properscoring",
+    "matplotlib>=3.7",
+    "seaborn>=0.12",
+    "torch>=2.0",
+    "chronos-forecasting[extras]>=2.2",
+    "nbformat>=5.0",
+    "ipykernel",
+    "ipywidgets",
+]
 
 [tool.setuptools.packages.find]
 include = ["mectesis*"]
