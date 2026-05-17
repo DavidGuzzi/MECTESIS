@@ -15,18 +15,31 @@ _FIT_ERRORS = (np.linalg.LinAlgError, RuntimeError, ValueError, Exception)
 
 class SARIMAXModel(BaseModel):
     """
-    SARIMAX(p, d, q) with optional exogenous regressors.
+    SARIMAX(p, d, q) x (P, D, Q, s) with optional exogenous regressors.
 
     Parameters
     ----------
     order : tuple
         ARIMA order (p, d, q).
+    seasonal_order : tuple, optional
+        Seasonal order (P, D, Q, s). Default (0, 0, 0, 0) = no seasonality.
+    trend : str, optional
+        Trend specification passed to statsmodels SARIMAX:
+        - "c"  : constant (default, backwards compatible)
+        - "ct" : constant + linear deterministic trend
+        - "t"  : linear deterministic trend (no constant)
+        - "n"  : no trend / no constant
     name_suffix : str
         Optional suffix appended to the model name (e.g. 'con X').
     """
 
-    def __init__(self, order: tuple = (1, 0, 0), name_suffix: str = ""):
+    def __init__(self, order: tuple = (1, 0, 0),
+                 seasonal_order: tuple = (0, 0, 0, 0),
+                 trend: str = "c",
+                 name_suffix: str = ""):
         self.order = order
+        self.seasonal_order = seasonal_order
+        self.trend = trend
         self._name_suffix = name_suffix
         self._fitted = None
         self._fit_failed = False
@@ -41,7 +54,9 @@ class SARIMAXModel(BaseModel):
             warnings.simplefilter("ignore")
             try:
                 model = SARIMAX(y_train, exog=exog, order=self.order,
-                                trend="c", enforce_stationarity=False,
+                                seasonal_order=self.seasonal_order,
+                                trend=self.trend,
+                                enforce_stationarity=False,
                                 enforce_invertibility=False)
                 self._fitted = model.fit(disp=False)
             except _FIT_ERRORS:
@@ -106,4 +121,6 @@ class SARIMAXModel(BaseModel):
     @property
     def name(self) -> str:
         base = f"SARIMAX{self.order}"
+        if self.seasonal_order != (0, 0, 0, 0):
+            base += f"x{self.seasonal_order}"
         return f"{base} {self._name_suffix}".strip()

@@ -8,6 +8,8 @@ torch>=2.0.0
 statsmodels>=0.14.0
 arch>=6.0.0
 chronos-forecasting[extras]>=2.2
+statsforecast>=2.0
+ruptures>=1.1
 
 # Configuración
 pyyaml>=6.0

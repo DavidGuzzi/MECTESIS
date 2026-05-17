@@ -33,3 +33,4 @@ experiments/expetiments_w_lib.md
 notebooks/experimentos_univariados copy.ipynb
 notebooks/experimentos_univariados_v2.ipynb
 scripts/gen_notebook_v2.py
+data/raw/variables_macro.xlsx
