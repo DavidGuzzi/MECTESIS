@@ -13,6 +13,7 @@ from typing import List, Dict, Tuple
 from mectesis.dgp.base import BaseDGP
 from mectesis.models.base import BaseModel
 from mectesis.metrics.decomposition import BiasVarianceMSE
+from mectesis.metrics.multivariate import trace_msfe, avg_marginal_crps
 
 
 class MultivariateMonteCarloEngine:
@@ -190,9 +191,66 @@ class MultivariateMonteCarloEngine:
                     crps_data=crps_d,
                 )
 
+            # Joint multivariate row (var_idx = -1): trace_msfe + avg_marginal_crps
+            # See notebook Cell 1.5 for the justification of these two metrics
+            # and the descarted alternatives (ES, VS, multivariate CRPS).
+            var_results[-1] = self._compute_joint_row(
+                error_mats[mname],
+                crps_mats[mname] if model in models_crps else None,
+                horizon,
+            )
+
             results[mname] = var_results
 
         return results
+
+    @staticmethod
+    def _compute_joint_row(error_mat: np.ndarray, crps_mat,
+                           horizon: int) -> pd.DataFrame:
+        """
+        Build the joint metrics DataFrame (one row per h, plus 'avg_all').
+
+        Columns: horizon, trace_msfe, avg_crps.
+        Replications where any variable has NaN are dropped.
+        """
+        valid = ~np.any(np.isnan(error_mat), axis=(1, 2))
+        if valid.sum() == 0:
+            rows = [
+                {"horizon": h, "trace_msfe": np.nan, "avg_crps": np.nan}
+                for h in list(range(1, horizon + 1)) + ["avg_all"]
+            ]
+            return pd.DataFrame(rows)
+
+        em = error_mat[valid]                          # (n_valid, horizon, k)
+        tm = trace_msfe(em)                            # (horizon,)
+
+        if crps_mat is not None:
+            cm = crps_mat[valid]                       # (n_valid, horizon, k)
+            # Only compute if not all NaN
+            if np.all(np.isnan(cm)):
+                acrps = np.full(horizon, np.nan)
+            else:
+                # Mask NaNs per-step (rare but possible)
+                with np.errstate(invalid="ignore"):
+                    acrps = np.nanmean(np.nanmean(cm, axis=2), axis=0)
+        else:
+            acrps = np.full(horizon, np.nan)
+
+        rows = []
+        for h in range(horizon):
+            rows.append({
+                "horizon": h + 1,
+                "trace_msfe": float(tm[h]),
+                "avg_crps": (float(acrps[h])
+                             if np.isfinite(acrps[h]) else np.nan),
+            })
+        rows.append({
+            "horizon": "avg_all",
+            "trace_msfe": float(np.mean(tm)),
+            "avg_crps": (float(np.nanmean(acrps))
+                         if np.any(np.isfinite(acrps)) else np.nan),
+        })
+        return pd.DataFrame(rows)
 
     @staticmethod
     def _nan_df(horizon: int) -> pd.DataFrame:
