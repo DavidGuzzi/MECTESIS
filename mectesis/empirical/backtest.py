@@ -1,17 +1,18 @@
 """
 Rolling-origin (a.k.a. walk-forward) backtest for forecasting models on
-a single empirical time series. Mirrors the metric set produced by
-`MonteCarloEngine` (RMSE, MAE, CRPS, coverage 80/95, Winkler 80/95,
-mean width 80/95) but indexed by **origin × horizon** instead of by
-Monte Carlo replicate × horizon.
+a single empirical time series.
+
+Metrics reported per (model × horizon):
+    n_origins, rmse, mae, crps, mase, bias
+
+Coverage / Winkler / interval-width metrics are intentionally NOT in the
+default output (intervals are still computed and stored for fan-charts
+via `predict_at_last_origin`).
 
 Supports three modes:
   - univariate:   y is pd.Series
-  - covariates:   y is pd.Series, X is pd.DataFrame (exog passed at
-                  fit and forecast)
-  - multivariate: y is pd.DataFrame (one column per variable). Models
-                  must accept and return arrays of shape (T, k) /
-                  (horizon, k).
+  - covariates:   y is pd.Series, X is pd.DataFrame (exog at fit/forecast)
+  - multivariate: y is pd.DataFrame; models return (horizon, k)
 """
 
 from typing import Callable
@@ -22,10 +23,28 @@ import pandas as pd
 from ..models.base import BaseModel
 
 
+def _mase_scale(y_train: np.ndarray, season: int = 12) -> np.ndarray:
+    """
+    Per-variable seasonal-naïve scaling for MASE (M4 convention).
+
+    For multivariate input shape (T, k) returns shape (k,);
+    for univariate shape (T,)  returns shape (1,).
+    """
+    arr = np.atleast_2d(y_train.T).T if y_train.ndim == 1 else y_train
+    T = arr.shape[0]
+    s = season if T > 2 * season else 1
+    diffs = np.abs(arr[s:] - arr[:-s])
+    scale = np.nanmean(diffs, axis=0)
+    scale = np.where(scale > 0, scale, np.nan)
+    return scale
+
+
 class RollingOriginBacktest:
     """
-    Refit-at-every-origin backtest. A fresh model is instantiated via
-    `model_factory()` at each origin to avoid carry-over state.
+    Refit-at-every-origin backtest.
+
+    A fresh model is instantiated via `model_factory()` at each origin to
+    avoid carry-over state.
 
     Parameters
     ----------
@@ -40,8 +59,8 @@ class RollingOriginBacktest:
         Stride between consecutive origins.
     X : pd.DataFrame | None
         Exogenous regressors aligned with `y` (covariate mode).
-    levels : tuple[float, ...]
-        Prediction interval coverage levels to evaluate.
+    season : int
+        Seasonal period for MASE scaling (default 12 = monthly).
     """
 
     def __init__(
@@ -53,7 +72,7 @@ class RollingOriginBacktest:
         scheme: str = "expanding",
         step: int = 1,
         X: pd.DataFrame | None = None,
-        levels: tuple = (0.80, 0.95),
+        season: int = 12,
     ):
         if scheme not in ("expanding", "sliding"):
             raise ValueError("scheme must be 'expanding' or 'sliding'")
@@ -64,7 +83,7 @@ class RollingOriginBacktest:
         self.scheme = scheme
         self.step = step
         self.X = X
-        self.levels = levels
+        self.season = season
         self._multivariate = isinstance(y, pd.DataFrame)
 
     def _origins(self) -> list[int]:
@@ -74,19 +93,8 @@ class RollingOriginBacktest:
         return list(range(self.initial_window, last + 1, self.step))
 
     def _slice_train(self, t: int):
-        if self.scheme == "expanding":
-            start = 0
-        else:
-            start = max(0, t - self.initial_window)
+        start = 0 if self.scheme == "expanding" else max(0, t - self.initial_window)
         return start, t
-
-    @staticmethod
-    def _winkler(y_true, lo, hi, level):
-        alpha = 1.0 - level
-        penalty = 2.0 / alpha
-        return ((hi - lo)
-                + penalty * np.maximum(lo - y_true, 0.0)
-                + penalty * np.maximum(y_true - hi, 0.0))
 
     def run(self, verbose: bool = False) -> dict[int, pd.DataFrame]:
         origins = self._origins()
@@ -104,20 +112,18 @@ class RollingOriginBacktest:
 
         shape = (n_orig, max_h, k) if self._multivariate else (n_orig, max_h)
         errors = np.full(shape, np.nan)
-        cov = {lv: np.full(shape, np.nan) for lv in self.levels}
-        wid = {lv: np.full(shape, np.nan) for lv in self.levels}
-        wnk = {lv: np.full(shape, np.nan) for lv in self.levels}
         crps = np.full(shape, np.nan)
-        has_iv = has_crps = False
+        scale = np.full((n_orig, k), np.nan)
+        has_crps = False
 
         for i, t in enumerate(origins):
             start, end = self._slice_train(t)
             y_train = y_arr[start:end]
             y_test = y_arr[end:end + max_h]
+            scale[i] = _mase_scale(y_train, season=self.season)
 
             model = self.model_factory()
-            fit_kwargs = {}
-            forecast_kwargs = {}
+            fit_kwargs, forecast_kwargs = {}, {}
             if self.X is not None:
                 fit_kwargs["X_train"] = X_arr[start:end]
                 forecast_kwargs["X_future"] = X_arr[end:end + max_h]
@@ -126,29 +132,20 @@ class RollingOriginBacktest:
             y_hat = model.forecast(max_h, **forecast_kwargs)
             errors[i] = y_test - y_hat
 
-            if model.supports_intervals:
-                has_iv = True
-                for lv in self.levels:
-                    lo, hi = model.forecast_intervals(max_h, level=lv, **forecast_kwargs) \
-                        if model.supports_covariates else \
-                        model.forecast_intervals(max_h, level=lv)
-                    inside = (y_test >= lo) & (y_test <= hi)
-                    cov[lv][i] = inside.astype(float)
-                    wid[lv][i] = hi - lo
-                    wnk[lv][i] = self._winkler(y_test, lo, hi, lv)
-
             if model.supports_crps:
                 has_crps = True
-                crps[i] = model.compute_crps(y_test, max_h, **forecast_kwargs) \
-                    if model.supports_covariates else \
-                    model.compute_crps(y_test, max_h)
+                crps[i] = (
+                    model.compute_crps(y_test, max_h, **forecast_kwargs)
+                    if model.supports_covariates
+                    else model.compute_crps(y_test, max_h)
+                )
 
             if verbose:
                 print(f"  origin {i+1}/{n_orig} (t={t})")
 
-        return self._summarise(errors, cov, wid, wnk, crps, has_iv, has_crps, k)
+        return self._summarise(errors, crps, scale, has_crps, k)
 
-    def _summarise(self, errors, cov, wid, wnk, crps, has_iv, has_crps, k):
+    def _summarise(self, errors, crps, scale, has_crps, k):
         out: dict[int, pd.DataFrame] = {}
         for h in self.horizons:
             idx = h - 1
@@ -156,43 +153,72 @@ class RollingOriginBacktest:
                 rows = []
                 for j, name in enumerate(self.y.columns):
                     err = errors[:, idx, j]
-                    row = {
-                        "variable": name,
-                        "n_origins": int(np.sum(~np.isnan(err))),
-                        "rmse": float(np.sqrt(np.nanmean(err ** 2))),
-                        "mae": float(np.nanmean(np.abs(err))),
-                        "bias": float(np.nanmean(err)),
-                    }
-                    if has_iv:
-                        for lv in self.levels:
-                            tag = int(round(lv * 100))
-                            row[f"cov{tag}"] = float(np.nanmean(cov[lv][:, idx, j]))
-                            row[f"width{tag}"] = float(np.nanmean(wid[lv][:, idx, j]))
-                            row[f"winkler{tag}"] = float(np.nanmean(wnk[lv][:, idx, j]))
+                    row = self._point_row(err)
+                    row["variable"] = name
+                    row["mase"] = float(np.nanmean(np.abs(err) / scale[:, j]))
                     if has_crps:
                         row["crps"] = float(np.nanmean(crps[:, idx, j]))
                     rows.append(row)
                 df = pd.DataFrame(rows)
-                trace = float(np.nanmean(np.nansum(errors[:, idx, :] ** 2, axis=1)))
-                df.attrs["trace_msfe"] = trace
             else:
                 err = errors[:, idx]
-                row = {
-                    "n_origins": int(np.sum(~np.isnan(err))),
-                    "rmse": float(np.sqrt(np.nanmean(err ** 2))),
-                    "mae": float(np.nanmean(np.abs(err))),
-                    "bias": float(np.nanmean(err)),
-                }
-                if has_iv:
-                    for lv in self.levels:
-                        tag = int(round(lv * 100))
-                        row[f"cov{tag}"] = float(np.nanmean(cov[lv][:, idx]))
-                        row[f"width{tag}"] = float(np.nanmean(wid[lv][:, idx]))
-                        row[f"winkler{tag}"] = float(np.nanmean(wnk[lv][:, idx]))
+                row = self._point_row(err)
+                row["mase"] = float(np.nanmean(np.abs(err) / scale[:, 0]))
                 if has_crps:
                     row["crps"] = float(np.nanmean(crps[:, idx]))
                 df = pd.DataFrame([row])
             out[h] = df
+        return out
+
+    @staticmethod
+    def _point_row(err: np.ndarray) -> dict:
+        return {
+            "n_origins": int(np.sum(~np.isnan(err))),
+            "rmse": float(np.sqrt(np.nanmean(err ** 2))),
+            "mae": float(np.nanmean(np.abs(err))),
+            "bias": float(np.nanmean(err)),
+        }
+
+    def predict_at_last_origin(self) -> dict:
+        """
+        Refit once at the last origin and return point forecast + 80/95 % bands,
+        useful for fan-charts. Returns:
+            {
+              "origin_idx": int (index in y / panel),
+              "horizon":    int (max horizon),
+              "mean": ndarray(h,) or (h, k),
+              "lo80": ..., "hi80": ..., "lo95": ..., "hi95": ...,
+              "model_name": str,
+            }
+        """
+        origins = self._origins()
+        t = origins[-1]
+        start, end = self._slice_train(t)
+        max_h = max(self.horizons)
+        y_arr = self.y.to_numpy()
+        X_arr = self.X.to_numpy() if self.X is not None else None
+
+        model = self.model_factory()
+        fit_kwargs, forecast_kwargs = {}, {}
+        if self.X is not None:
+            fit_kwargs["X_train"] = X_arr[start:end]
+            forecast_kwargs["X_future"] = X_arr[end:end + max_h]
+        model.fit(y_arr[start:end], **fit_kwargs)
+
+        out = {
+            "origin_idx": t,
+            "horizon": max_h,
+            "mean": np.asarray(model.forecast(max_h, **forecast_kwargs)),
+            "model_name": model.name,
+        }
+        if model.supports_intervals:
+            for lv, tag in ((0.80, "80"), (0.95, "95")):
+                if model.supports_covariates:
+                    lo, hi = model.forecast_intervals(max_h, level=lv, **forecast_kwargs)
+                else:
+                    lo, hi = model.forecast_intervals(max_h, level=lv)
+                out[f"lo{tag}"] = np.asarray(lo)
+                out[f"hi{tag}"] = np.asarray(hi)
         return out
 
 
@@ -203,12 +229,12 @@ def compare_models(
     initial_window: int = 72,
     scheme: str = "expanding",
     X: pd.DataFrame | None = None,
-    levels: tuple = (0.80, 0.95),
+    season: int = 12,
     verbose: bool = False,
 ) -> pd.DataFrame:
     """
-    Convenience helper: run RollingOriginBacktest for each factory and
-    return a long-format DataFrame with (model, horizon) as identifiers.
+    Run RollingOriginBacktest for each factory and return a long-format
+    DataFrame with (model, horizon[, variable]) as identifiers.
     """
     rows = []
     for name, factory in factories.items():
@@ -217,7 +243,7 @@ def compare_models(
         bt = RollingOriginBacktest(
             factory, y, horizons,
             initial_window=initial_window, scheme=scheme,
-            X=X, levels=levels,
+            X=X, season=season,
         )
         res = bt.run(verbose=False)
         for h, df in res.items():
@@ -226,3 +252,45 @@ def compare_models(
             tmp.insert(0, "model", name)
             rows.append(tmp)
     return pd.concat(rows, ignore_index=True)
+
+
+def predict_all_at_last_origin(
+    factories: dict[str, Callable[[], BaseModel]],
+    y: pd.Series | pd.DataFrame,
+    horizons: list[int],
+    initial_window: int = 72,
+    scheme: str = "expanding",
+    X: pd.DataFrame | None = None,
+) -> dict[str, dict]:
+    """
+    Run `predict_at_last_origin` for each factory. Returns
+    `{model_name: {mean, lo80, hi80, lo95, hi95, origin_idx, horizon, model_name}}`.
+    """
+    out = {}
+    for name, factory in factories.items():
+        bt = RollingOriginBacktest(
+            factory, y, horizons,
+            initial_window=initial_window, scheme=scheme, X=X,
+        )
+        out[name] = bt.predict_at_last_origin()
+    return out
+
+
+def to_wide_table(
+    long_df: pd.DataFrame,
+    metrics: tuple[str, ...] = ("rmse", "mae", "crps", "mase"),
+    index: tuple[str, ...] | None = None,
+) -> pd.DataFrame:
+    """
+    Pivot a long-format result (output of `compare_models`) into a wide
+    table with MultiIndex `(metric, horizon)` columns and `model`
+    (plus `variable` if multivariate) as index.
+    """
+    if index is None:
+        index = ("variable", "model") if "variable" in long_df.columns else ("model",)
+    present = [m for m in metrics if m in long_df.columns]
+    pivot = long_df.pivot_table(
+        index=list(index), columns="horizon", values=list(present)
+    )
+    pivot = pivot.reorder_levels([0, 1], axis=1).sort_index(axis=1, level=[0, 1])
+    return pivot

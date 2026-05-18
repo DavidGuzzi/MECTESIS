@@ -593,10 +593,15 @@ def chk_y_zero_mean(y, X, dgp, params):
     \"\"\"Media de Y ~ 0 usando standard error robusto a autocorrelacion
     (Newey-West / Bartlett kernel). El SE tipico sigma/sqrt(T) subestima
     la varianza de la media muestral cuando Y es persistente — caso
-    tipico de ARIMAX con phi alto y/o rho_x alto.\"\"\"
+    tipico de ARIMAX con phi alto y/o rho_x alto. Si el DGP tiene
+    componente estacional con periodo s, ampliamos bw a max(bw_default,
+    2*s) para capturar las autocovarianzas a lags estacionales — el
+    default floor(4*(T/100)^(2/9)) subestima LRV cuando rho[s] es alta.\"\"\"
     mu = y.mean(); T = len(y)
     e = y - mu
-    bw = max(1, int(np.floor(4.0 * (T / 100.0) ** (2.0 / 9.0))))
+    bw_default = max(1, int(np.floor(4.0 * (T / 100.0) ** (2.0 / 9.0))))
+    s = int(params.get("s", 0))
+    bw = max(bw_default, 2 * s) if s > 0 else bw_default
     gamma0 = float(np.dot(e, e) / T)
     lrv = gamma0
     for k in range(1, bw + 1):
@@ -605,7 +610,8 @@ def chk_y_zero_mean(y, X, dgp, params):
         lrv += 2.0 * w * gamma_k
     se = np.sqrt(max(lrv, 1e-12) / T)
     tol = 3.0 * se
-    return abs(mu) < tol, f"media={mu:.4f}, tol=+/-{tol:.4f} (HAC bw={bw})"
+    tag = f", adaptado a s={s}" if s > 0 else ""
+    return abs(mu) < tol, f"media={mu:.4f}, tol=+/-{tol:.4f} (HAC bw={bw}{tag})"
 
 
 def chk_x_stationary(y, X, dgp, params):
@@ -641,14 +647,25 @@ def chk_acf_rho_x(y, X, dgp, params):
 
 
 def chk_yx_correlation(y, X, dgp, params):
-    \"\"\"Correlacion contemporanea no nula y con signo correcto cuando el efecto exogeno
-    en la media no es cero.\"\"\"
+    \"\"\"Correlacion contemporanea no nula y con signo correcto cuando el efecto
+    exogeno en la media no es cero. Si el DGP tiene tendencia deterministica
+    (delta != 0), la varianza total de Y queda dominada por delta*t y la
+    correlacion contemporanea queda diluida — en ese caso detrend Y primero
+    via OLS lineal para aislar la senal estocastica.\"\"\"
     for key in ("beta", "beta_mean", "beta1"):
         if key in params and params[key] != 0:
             val = params[key]
-            corr = float(np.corrcoef(y, X[:, 0])[0, 1])
+            y_used = y
+            tag = ""
+            if params.get("delta", 0.0) != 0.0:
+                T = len(y)
+                t = np.arange(T)
+                slope, intercept = np.polyfit(t, y, 1)
+                y_used = y - (slope * t + intercept)
+                tag = "_detrended"
+            corr = float(np.corrcoef(y_used, X[:, 0])[0, 1])
             ok = (abs(corr) > 0.05) and (np.sign(corr) == np.sign(val))
-            return ok, f"corr(Y,X[0])={corr:.4f}, {key}={val}"
+            return ok, f"corr(Y{tag},X[0])={corr:.4f}, {key}={val}"
     return True, "no aplica (efecto exogeno en media = 0)"
 
 
