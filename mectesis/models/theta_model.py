@@ -58,6 +58,12 @@ class ThetaModel(BaseModel):
         return True
 
     def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
+        # Infer sigma from the 95% PI assuming a symmetric Gaussian band
+        # centered at the point forecast. This is consistent with
+        # statsmodels' default ThetaModel.prediction_intervals (Gaussian-based).
+        # If that mechanism ever changes (t-Student, empirical, asymmetric),
+        # this conversion becomes inconsistent — verify before upgrading
+        # statsmodels.
         from properscoring import crps_gaussian
         from scipy.stats import norm
 

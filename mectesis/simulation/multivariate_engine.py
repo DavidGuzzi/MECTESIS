@@ -226,13 +226,10 @@ class MultivariateMonteCarloEngine:
 
         if crps_mat is not None:
             cm = crps_mat[valid]                       # (n_valid, horizon, k)
-            # Only compute if not all NaN
             if np.all(np.isnan(cm)):
                 acrps = np.full(horizon, np.nan)
             else:
-                # Mask NaNs per-step (rare but possible)
-                with np.errstate(invalid="ignore"):
-                    acrps = np.nanmean(np.nanmean(cm, axis=2), axis=0)
+                acrps = avg_marginal_crps(cm)
         else:
             acrps = np.full(horizon, np.nan)
 

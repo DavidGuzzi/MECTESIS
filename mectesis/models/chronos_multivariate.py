@@ -12,8 +12,18 @@ ChronosPerVarModel: k independent univariate forecasts (secondary baseline).
 import numpy as np
 from .base import BaseModel
 
-_CACHED_LEVELS = [0.025, 0.1, 0.5, 0.9, 0.975]
-# Index map:  lo95=0, lo80=1, med=2, hi80=3, hi95=4
+# K=39 uniform levels for the proper CRPS estimator (trapezoidal pinball).
+# Step 0.025 naturally includes 0.025, 0.10, 0.50, 0.90, 0.975 — all the
+# levels needed for 80% and 95% intervals.
+_CRPS_LEVELS = [round(0.025 * k, 3) for k in range(1, 40)]  # 0.025, 0.050, ..., 0.975
+_CACHED_LEVELS = list(_CRPS_LEVELS)
+
+# Named indices into _CACHED_LEVELS for forecast/forecast_intervals.
+_IDX_LO95 = _CACHED_LEVELS.index(0.025)
+_IDX_LO80 = _CACHED_LEVELS.index(0.10)
+_IDX_MED  = _CACHED_LEVELS.index(0.50)
+_IDX_HI80 = _CACHED_LEVELS.index(0.90)
+_IDX_HI95 = _CACHED_LEVELS.index(0.975)
 
 
 class ChronosMultivariateModel(BaseModel):
@@ -67,8 +77,8 @@ class ChronosMultivariateModel(BaseModel):
 
     def forecast(self, horizon: int, **kwargs) -> np.ndarray:
         """Return median forecasts of shape (horizon, k)."""
-        q = self._all_quantiles(horizon)   # (k, horizon, 5)
-        return q[:, :, 2].T               # (horizon, k) — median index 2
+        q = self._all_quantiles(horizon)         # (k, horizon, n_levels)
+        return q[:, :, _IDX_MED].T               # (horizon, k)
 
     @property
     def supports_intervals(self) -> bool:
@@ -81,13 +91,13 @@ class ChronosMultivariateModel(BaseModel):
         Return (lower, upper) of shape (horizon, k).
         Supported levels: 0.80 and 0.95.
         """
-        q = self._all_quantiles(horizon)   # (k, horizon, 5)
+        q = self._all_quantiles(horizon)         # (k, horizon, n_levels)
         if level == 0.95:
-            lo = q[:, :, 0].T   # 0.025 quantile → (horizon, k)
-            hi = q[:, :, 4].T   # 0.975 quantile
+            lo = q[:, :, _IDX_LO95].T
+            hi = q[:, :, _IDX_HI95].T
         elif level == 0.80:
-            lo = q[:, :, 1].T   # 0.10 quantile
-            hi = q[:, :, 3].T   # 0.90 quantile
+            lo = q[:, :, _IDX_LO80].T
+            hi = q[:, :, _IDX_HI80].T
         else:
             raise ValueError(
                 f"Chronos interval level {level} not supported. Use 0.80 or 0.95."
@@ -100,16 +110,15 @@ class ChronosMultivariateModel(BaseModel):
 
     def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
         """
-        Return CRPS of shape (horizon, k), one score per step per variable.
-        Uses the 5 cached quantile levels as ensemble approximation.
+        Return CRPS of shape (horizon, k) via the proper trapezoidal estimator
+        over K=19 uniform quantile levels.
         """
-        from properscoring import crps_ensemble
-        q = self._all_quantiles(horizon)  # (k, horizon, 5)
-        result = np.empty((horizon, self._k))
-        for j in range(self._k):
-            samples = q[j, :, :]  # (horizon, 5) — 5 quantile levels as samples
-            result[:, j] = crps_ensemble(y_true[:, j], samples)
-        return result
+        from mectesis.metrics import crps_from_quantiles
+        q = self._all_quantiles(horizon)         # (k, horizon, n_levels)
+        idx = [_CACHED_LEVELS.index(l) for l in _CRPS_LEVELS]
+        quantiles_arr = q[:, :, idx].transpose(1, 0, 2)   # (horizon, k, K)
+        levels = np.array(_CRPS_LEVELS)
+        return crps_from_quantiles(y_true, quantiles_arr, levels)   # (horizon, k)
 
     @property
     def name(self) -> str:
@@ -181,14 +190,17 @@ class ChronosPerVarModel(BaseModel):
         return True
 
     def compute_crps(self, y_true: np.ndarray, horizon: int) -> np.ndarray:
-        """Return CRPS of shape (horizon, k)."""
-        from properscoring import crps_ensemble
-        _LEVELS = [0.025, 0.1, 0.5, 0.9, 0.975]
+        """
+        Return CRPS of shape (horizon, k) via the proper trapezoidal estimator
+        over K=19 uniform quantile levels.
+        """
+        from mectesis.metrics import crps_from_quantiles
+        levels = np.array(_CRPS_LEVELS)
         result = np.empty((horizon, self._k))
         for j in range(self._k):
             q = self._get_var_quantiles(j, horizon)
-            samples = np.stack([q[l] for l in _LEVELS], axis=1)  # (horizon, 5)
-            result[:, j] = crps_ensemble(y_true[:, j], samples)
+            quantiles_arr = np.stack([q[l] for l in _CRPS_LEVELS], axis=1)  # (horizon, K)
+            result[:, j] = crps_from_quantiles(y_true[:, j], quantiles_arr, levels)
         return result
 
     @property

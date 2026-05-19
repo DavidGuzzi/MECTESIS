@@ -11,7 +11,11 @@ loading the model twice.
 import numpy as np
 from .base import BaseModel
 
-_CACHED_LEVELS = [0.025, 0.1, 0.5, 0.9, 0.975]
+# K=39 uniform levels for the proper CRPS estimator (trapezoidal pinball).
+# Step 0.025 naturally includes 0.025, 0.10, 0.50, 0.90, 0.975 — all the
+# levels needed for 80% and 95% intervals.
+_CRPS_LEVELS = [round(0.025 * k, 3) for k in range(1, 40)]  # 0.025, 0.050, ..., 0.975
+_CACHED_LEVELS = list(_CRPS_LEVELS)
 
 
 class ChronosCovariateModel(BaseModel):
@@ -107,10 +111,12 @@ class ChronosCovariateModel(BaseModel):
 
     def compute_crps(self, y_true: np.ndarray, horizon: int,
                      X_future: np.ndarray = None) -> np.ndarray:
-        from properscoring import crps_ensemble
+        """Proper CRPS via trapezoidal pinball loss over K=19 uniform quantiles."""
+        from mectesis.metrics import crps_from_quantiles
         q = self._all_quantiles(horizon, X_future)
-        samples = np.stack([q[l] for l in _CACHED_LEVELS], axis=1)
-        return crps_ensemble(y_true, samples)
+        levels = np.array(_CRPS_LEVELS)
+        quantiles_arr = np.stack([q[l] for l in _CRPS_LEVELS], axis=1)  # (horizon, K)
+        return crps_from_quantiles(y_true, quantiles_arr, levels)
 
     @property
     def name(self) -> str:
@@ -211,15 +217,17 @@ class ChronosMultivariateCovariateModel(BaseModel):
 
     def compute_crps(self, y_true: np.ndarray, horizon: int,
                      X_future: np.ndarray = None) -> np.ndarray:
-        from properscoring import crps_ensemble
+        """
+        Return CRPS of shape (horizon, k) via the proper trapezoidal estimator
+        over K=19 uniform quantile levels.
+        """
+        from mectesis.metrics import crps_from_quantiles
         q = self._all_quantiles(horizon, X_future)
-        # q[l]: (k, horizon) → stack to (k, horizon, 5) → compute per var/step
-        k = q[0.5].shape[0]
-        crps_out = np.empty((horizon, k))
-        samples = np.stack([q[l] for l in _CACHED_LEVELS], axis=2)  # (k, horizon, 5)
-        for j in range(k):
-            crps_out[:, j] = crps_ensemble(y_true[:, j], samples[j])
-        return crps_out  # (horizon, k)
+        # q[l]: (k, horizon) → stack to (k, horizon, K) → transpose to (horizon, k, K)
+        quantiles_arr = np.stack([q[l] for l in _CRPS_LEVELS], axis=2)  # (k, horizon, K)
+        quantiles_arr = quantiles_arr.transpose(1, 0, 2)                # (horizon, k, K)
+        levels = np.array(_CRPS_LEVELS)
+        return crps_from_quantiles(y_true, quantiles_arr, levels)        # (horizon, k)
 
     @property
     def name(self) -> str:
