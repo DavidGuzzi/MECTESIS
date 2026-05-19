@@ -36,9 +36,9 @@ def code(text: str) -> dict:
 # ============================================================================
 CELL_TITLE = """# Experimentos Multivariados v5 Cloud (Vertex AI)
 
-**Tesis MEC** — 33 DGPs multivariados x T in {25,50,100,200} x R=500
+**Tesis MEC** — 33 DGPs multivariados x T in {50,100,200} x R=500
 **Verificacion DGP:** cada experimento incluye seccion PASS/FAIL multivariada antes del Monte Carlo
-**Horizonte por T:** T=25->H=6 * T=50->H=18 * T=100,200->H=24
+**Horizonte por T:** T=50->H=6 * T=100->H=18 * T=200->H=24
 **Metricas (per-variable):** Bias, Varianza, RMSE, MAE, CRPS, Cobertura/Amplitud/Winkler 80%-95%
 **Metricas (multivariadas conjuntas):** Trace MSFE + avgCRPS marginal — ver Cell 1.5 para justificacion y descartes
 **Bloques h:** Corto h=1-6 * Medio h=7-18 * Largo h=19-24
@@ -98,10 +98,10 @@ from mectesis.metrics import trace_msfe, avg_marginal_crps  # noqa: F401 — usa
 
 # Parametros globales
 SEED    = 3649
-H_BY_T  = {25: 6, 50: 18, 100: 24, 200: 24}
+H_BY_T  = {50: 6, 100: 18, 200: 24}
 H_MAX   = 24
 R_LIST  = [500]
-T_LIST  = [25, 50, 100, 200]
+T_LIST  = [50, 100, 200]
 RESULTS = Path("results/multivariate_v5_vertexai")
 RESULTS.mkdir(parents=True, exist_ok=True)
 
@@ -942,7 +942,6 @@ cells.append(md("""---
 ## Bloque M-B — VAR orden superior y cerca-unit-root (6 exps)
 
 Memoria larga (p>=2) y eigenvalores cerca del circulo unitario.
-T_list restringido para M-B.5/6 (estimacion inestable con T=25).
 """))
 
 MB = [
@@ -965,15 +964,15 @@ MB = [
      "[[[0.25,0.0],[0.0,0.25]], [[0.2,0.0],[0.0,0.2]], [[0.15,0.0],[0.0,0.15]], [[0.1,0.0],[0.0,0.1]]]",
      "[[1.0,0.2],[0.2,1.0]]", None, "CHECKS_VAR",
      "4 lags con decay; total persistencia 0.7",
-     "Test extremo de orden; VAR(4) con T=25 fallara."),
+     "Test extremo de orden."),
     ("M-B.5", "VAR(1) cerca unit root", 1,
      "[[[0.95,0.02],[0.02,0.93]]]",
-     "[[1.0,0.3],[0.3,1.0]]", [50, 100, 200], "CHECKS_VAR_NEAR_UNIT_ROOT",
+     "[[1.0,0.3],[0.3,1.0]]", None, "CHECKS_VAR_NEAR_UNIT_ROOT",
      "A1 cuasi-identidad; eigenvalores ~0.95",
      "Casi-RW bivariado; misspecification de estacionariedad."),
     ("M-B.6", "VAR(2) cerca unit root", 2,
      "[[[0.6,0.1],[0.1,0.6]], [[0.35,0.0],[0.0,0.33]]]",
-     "[[1.0,0.3],[0.3,1.0]]", [50, 100, 200], "CHECKS_VAR_NEAR_UNIT_ROOT",
+     "[[1.0,0.3],[0.3,1.0]]", None, "CHECKS_VAR_NEAR_UNIT_ROOT",
      "Companion eigenvalor maximo ~0.97",
      "Persistencia alta + orden alto; estimacion VAR puede ser ruidosa."),
 ]
@@ -1029,13 +1028,13 @@ MC = [
     ("M-C.1", "VAR(1) k=3 tridiagonal", 3, build_tridiag(3, 0.5, 0.1),
      build_sigma_tridiag(3, 0.2), None,
      "k=3, A1 tridiagonal d=0.5/o=0.1, Sigma tridiagonal off=0.2",
-     "Baseline 3-variado; T=25 viable (k*p+1=4)."),
+     "Baseline 3-variado."),
     ("M-C.2", "VAR(1) k=4 tridiagonal", 4, build_tridiag(4, 0.4, 0.1),
-     build_sigma_tridiag(4, 0.2), [50, 100, 200],
+     build_sigma_tridiag(4, 0.2), None,
      "k=4, A1 tridiagonal d=0.4/o=0.1",
-     "Excluye T=25 (T_train=19 < 4*5=20)."),
+     "T_train minimo 44 (T=50)."),
     ("M-C.3", "VAR(1) k=5 tridiagonal", 5, build_tridiag(5, 0.3, 0.05),
-     build_sigma_tridiag(5, 0.1), [50, 100, 200],
+     build_sigma_tridiag(5, 0.1), None,
      "k=5, A1 tridiagonal d=0.3/o=0.05",
      "T_train minimo 44 (T=50)."),
     ("M-C.4", "VAR(1) k=5 matriz densa", 5, build_dense_var5(),

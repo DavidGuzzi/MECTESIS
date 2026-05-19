@@ -56,10 +56,10 @@ from mectesis.models import (
 from mectesis.simulation import MonteCarloEngine
 
 SEED    = 3649
-H_BY_T  = {25: 6, 50: 18, 100: 24, 200: 24}
+H_BY_T  = {50: 6, 100: 18, 200: 24}
 H_MAX   = 24
 R_LIST  = [500]
-T_LIST  = [25, 50, 100, 200]
+T_LIST  = [50, 100, 200]
 RESULTS = Path("results/univariate_v5_vertexai")
 RESULTS.mkdir(parents=True, exist_ok=True)
 
@@ -534,9 +534,9 @@ cells = []
 
 cells.append(md(
     "# Experimentos Univariados v5 Cloud (Vertex AI)\n\n"
-    "**Tesis MEC** — 97 DGPs x T in {25,50,100,200} x R=500  \n"
+    "**Tesis MEC** — 97 DGPs x T in {50,100,200} x R=500  \n"
     "**Verificacion DGP:** cada experimento incluye seccion PASS/FAIL antes del Monte Carlo  \n"
-    "**Horizonte por T:** T=25->H=6 * T=50->H=18 * T=100,200->H=24  \n"
+    "**Horizonte por T:** T=50->H=6 * T=100->H=18 * T=200->H=24  \n"
     "**Metricas:** Bias, Varianza, RMSE, CRPS  \n"
     "**Bloques:** Corto h=1-6 * Medio h=7-18 * Largo h=19-24  \n"
     "**Logging:** dual stdout + `results/univariate_v5_vertexai/run_YYYYMMDD_HHMMSS.log`  \n"
@@ -746,7 +746,7 @@ verify_dgp("E.5 -- Seasonal Aditiva s=12", dgp,
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1,
                "sigma_zeta": 0.0, "sigma_omega": 0.05, "b0": 0.0},
-              exp_id="E.5", T_list=[50, 100, 200])
+              exp_id="E.5")
 log("\\n" + "="*60 + "\\nE.5 -- Seasonal Aditiva s=12 ETS(A,N,A)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
 plot_simulation_v3(dgp, [cl, chronos], {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1, "sigma_zeta": 0.0, "sigma_omega": 0.05, "b0": 0.0}, title="E.5 -- Seasonal Aditiva s=12 ETS(A,N,A)")
@@ -762,7 +762,7 @@ verify_dgp("E.6 -- Trend+Seasonal s=12 ETS(A,A,A)", dgp,
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1,
                "sigma_zeta": 0.05, "sigma_omega": 0.05, "b0": 0.1},
-              exp_id="E.6", T_list=[50, 100, 200])
+              exp_id="E.6")
 log("\\n" + "="*60 + "\\nE.6 -- Trend+Seasonal s=12 ETS(A,A,A)\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
 plot_simulation_v3(dgp, [cl, chronos], {"s": 12, "sigma_eps": 0.5, "sigma_eta": 0.1, "sigma_zeta": 0.05, "sigma_omega": 0.05, "b0": 0.1}, title="E.6 -- Trend+Seasonal s=12 ETS(A,A,A)")
@@ -813,7 +813,6 @@ for suf, desc, s, integrated, phi, Phi, order, sorder in SARIMA_SPECS:
         dgp_params_str = f'{{"s": {s}, "sigma": 1.0, "integrated": True}}'
     else:
         dgp_params_str = f'{{"phi": {phi}, "Phi": {Phi}, "s": {s}, "sigma": 1.0, "integrated": False}}'
-    t_list = "[50, 100, 200]" if s == 12 else "T_LIST"
     src = f"""\
 # F.{suf} -- {desc}
 cl  = SARIMAModel(order={order!r}, seasonal_order={sorder!r})
@@ -821,7 +820,7 @@ dgp = SeasonalDGP(seed=SEED)
 verify_dgp("F.{suf} -- {desc}", dgp, {dgp_params_str}, cl, CHECKS_SAR)
 res = run_exp(dgp, lambda T, _cl=cl: [_cl, chronos],
               {dgp_params_str},
-              exp_id="F.{suf}", T_list={t_list})
+              exp_id="F.{suf}")
 log("\\n" + "="*60 + "\\nF.{suf} -- {desc}\\n" + "="*60)
 build_grid_table(res, classical_name=cl.name)
 plot_simulation_v3(dgp, [cl, chronos], {dgp_params_str}, title="F.{suf} -- {desc}")
@@ -887,15 +886,14 @@ cells.append(md(
     "---\n## Resumen\n\n"
     "| Bloque | DGPs | T | R | Total series |\n"
     "|--------|------|---|---|-------------|\n"
-    "| A — ARMA sin tendencia | 24 | 4 | 500 | 48,000 |\n"
-    "| B — ARMA con tendencia | 48 | 4 | 500 | 96,000 |\n"
-    "| C — Random Walk | 3 | 4 | 500 | 6,000 |\n"
-    "| D — ARCH/GARCH | 4 | 4 | 500 | 8,000 |\n"
-    "| E — ETS/Theta | 6* | 4 | 500 | ~12,000 |\n"
-    "| F — SARIMA | 6* | <=4 | 500 | ~10,000 |\n"
-    "| G — SETAR/LSTAR/ESTAR | 4 | 4 | 500 | 8,000 |\n"
-    "| **Total** | **95** | — | — | **~188,000** |\n\n"
-    "*Algunos experimentos usan T_list reducido (s=12 requiere T>=50)"
+    "| A — ARMA sin tendencia | 24 | 3 | 500 | 36,000 |\n"
+    "| B — ARMA con tendencia | 48 | 3 | 500 | 72,000 |\n"
+    "| C — Random Walk | 3 | 3 | 500 | 4,500 |\n"
+    "| D — ARCH/GARCH | 4 | 3 | 500 | 6,000 |\n"
+    "| E — ETS/Theta | 6 | 3 | 500 | 9,000 |\n"
+    "| F — SARIMA | 6 | 3 | 500 | 9,000 |\n"
+    "| G — SETAR/LSTAR/ESTAR | 4 | 3 | 500 | 6,000 |\n"
+    "| **Total** | **95** | — | — | **~142,500** |\n"
 ))
 
 # ─── Escribir notebook ────────────────────────────────────────────────────────

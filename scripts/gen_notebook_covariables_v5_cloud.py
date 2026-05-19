@@ -43,8 +43,8 @@ def code(text: str) -> dict:
 # ────────────────────────────────────────────────────────────────────────────
 TITLE = """# Experimentos con Covariables v5 Cloud (Vertex AI)
 
-**Tesis MEC** — 25 DGPs con covariables x T in {25,50,100,200} x R=500
-**Horizonte por T:** T=25->H=6 * T=50->H=18 * T=100,200->H=24
+**Tesis MEC** — 25 DGPs con covariables x T in {50,100,200} x R=500
+**Horizonte por T:** T=50->H=6 * T=100->H=18 * T=200->H=24
 **Metricas (univariado):** Bias, Varianza, RMSE, MAE, CRPS, Cobertura/Amplitud/Winkler 80%-95%
 **Metricas (multivariado):** mismas per-variable + Trace MSFE y avgCRPS conjuntos (donde el engine las expone)
 **Bloques h:** Corto h=1-6 * Medio h=7-18 * Largo h=19-24
@@ -71,7 +71,6 @@ Chronos-2 expone unicamente cuantiles (no samples i.i.d.). En v4_cloud se pasaba
 - En todos los experimentos las covariables son *completamente observadas*: se proveen historico (`X_train`) y futuro conocido (`X_future`) a los modelos que las aceptan.
 - Chronos-2 recibe las covariables via la API de `past_covariates` / `future_covariates`.
 - Los modelos clasicos (SARIMAX, VARMAX, ARDL-ECM) son el contraste correctamente especificado para cada DGP.
-- C-H.3/C-H.4 (s=12) restringen T_list a [50, 100, 200]: T=25 da solo ~2 ciclos estacionales, insuficiente para identificar el componente.
 """
 
 
@@ -116,10 +115,10 @@ from mectesis.simulation import (
 
 # ── Parametros globales (replican v4_cloud) ──────────────────────────────────
 SEED    = 3649
-H_BY_T  = {25: 6, 50: 18, 100: 24, 200: 24}
+H_BY_T  = {50: 6, 100: 18, 200: 24}
 H_MAX   = 24
 R_LIST  = [500]
-T_LIST  = [25, 50, 100, 200]
+T_LIST  = [50, 100, 200]
 RESULTS = Path("results/covariate_v5_vertexai")
 RESULTS.mkdir(parents=True, exist_ok=True)
 
@@ -1053,8 +1052,8 @@ sobre SARIMAX sin componente estacional.
 Variantes:
 - **C-H.1**: trimestral ($s=4$), baseline $\\beta = 0.5$.
 - **C-H.2**: trimestral ($s=4$), cov fuerte $\\beta = 0.8$.
-- **C-H.3**: mensual ($s=12$), baseline $\\beta = 0.5$. T_list = [50, 100, 200] (T=25 da solo 2 ciclos).
-- **C-H.4**: mensual ($s=12$), cov fuerte $\\beta = 0.8$. T_list = [50, 100, 200].
+- **C-H.3**: mensual ($s=12$), baseline $\\beta = 0.5$.
+- **C-H.4**: mensual ($s=12$), cov fuerte $\\beta = 0.8$.
 
 Parametros estacionales: $\\phi = 0.3$ (AR no estacional debil), $\\Phi = 0.7$
 (persistencia estacional fuerte), $\\rho_x = 0.7$.
@@ -1455,7 +1454,7 @@ EXPERIMENTS += [
     ),
     (
         "### C-H.3 — Estacionalidad mensual (s=12), cov medio\n\n"
-        "**DGP:** SARIMA(1,0,0)(1,0,0)[12] multiplicativo. **T_list restringido a [50, 100, 200]** (T=25 da solo ~2 ciclos estacionales, insuficiente para identificar $\\Phi$).\n\n"
+        "**DGP:** SARIMA(1,0,0)(1,0,0)[12] multiplicativo.\n\n"
         "**Hipotesis:** estacionalidad de baja frecuencia con muchos parametros efectivos. Modelos estacionales tipicamente necesitan T >> 2s para estimacion confiable.\n",
         exp_uni_cell(
             "C-H.3", "Estacional s=12 beta=0.5",
@@ -1464,12 +1463,11 @@ EXPERIMENTS += [
             "s=12, phi=0.3, Phi=0.7, beta=0.5, sigma_y=1.0, sigma_x=1.0, rho_x=0.7",
             SARIMAX_NAME_SEAS_12,
             checks_var="CHECKS_ARIMAX_SEASONAL",
-            T_list_override="[50, 100, 200]",
         ),
     ),
     (
         "### C-H.4 — Estacionalidad mensual (s=12), cov fuerte (beta = 0.8)\n\n"
-        "**DGP:** identico a C-H.3 pero $\\beta = 0.8$. Mismo T_list restringido.\n\n"
+        "**DGP:** identico a C-H.3 pero $\\beta = 0.8$.\n\n"
         "**Hipotesis:** cov fuerte combinada con estacionalidad de baja frecuencia — el caso mas exigente del bloque. Verifica si Chronos extrae beneficio de la cov cuando la senal estacional es periodica y larga.\n",
         exp_uni_cell(
             "C-H.4", "Estacional s=12 beta=0.8",
@@ -1478,7 +1476,6 @@ EXPERIMENTS += [
             "s=12, phi=0.3, Phi=0.7, beta=0.8, sigma_y=1.0, sigma_x=1.0, rho_x=0.7",
             SARIMAX_NAME_SEAS_12,
             checks_var="CHECKS_ARIMAX_SEASONAL",
-            T_list_override="[50, 100, 200]",
         ),
     ),
 ]
@@ -1490,9 +1487,8 @@ EXPERIMENTS += [
 SUMMARY = """---
 ## Resumen
 
-25 experimentos x 4 valores de T x 1 R = 98 corridas Monte Carlo (R=500 cada una;
-C-H.3/4 corren solo 3 T cada uno => 8 corridas en vez de 16).
-Tiempo estimado: ~4-7 h en CPU (Vertex AI free tier), considerablemente menor en GPU.
+25 experimentos x 3 valores de T x 1 R = 75 corridas Monte Carlo (R=500 cada una).
+Tiempo estimado: ~3-5 h en CPU (Vertex AI free tier), considerablemente menor en GPU.
 
 **Cobertura de la grilla:**
 
