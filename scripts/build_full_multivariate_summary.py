@@ -69,21 +69,89 @@ EXP_RE = re.compile(r"^exp_(M-[A-G])_(\d+)_T(\d+)_R" + str(R) + r"\.csv$")
 # antecede a sus experimentos (le dice al lector que va a encontrar). Tomado de
 # los encabezados "## Bloque M-X --" de la notebook v6.
 BLOCK_SUMMARY = {
-    "M-A": r"Bloque VAR(1) bivariado estacionario --- distintos patrones de "
-           r"dependencia cruzada y correlaci\'on contempor\'anea $\Sigma$",
-    "M-B": r"Bloque VAR de orden superior --- $p \ge 2$ y cerca de la ra\'iz "
-           r"unitaria (memoria larga)",
-    "M-C": r"Bloque Dimensionalidad creciente --- $k \in \{3,4,5,6\}$: "
-           r"estructuras tridiagonales y densas",
-    "M-D": r"Bloque VAR + GARCH diagonal --- heteroscedasticidad condicional, "
-           r"de baja a alta persistencia",
-    "M-E": r"Bloque Cointegraci\'on VECM bivariado --- rango 1: velocidad y "
-           r"simetr\'ia del ajuste al equilibrio",
-    "M-F": r"Bloque VAR con eigenvalores complejos --- ciclos end\'ogenos "
-           r"(lentos, marcados, flip de periodo 2)",
-    "M-G": r"Bloque Patrones de acople sistem\'aticos --- block-diagonal, "
-           r"cadena, hub-and-spoke, denso, banded ($k$ hasta 8)",
+    "M-A": r"Bloque VAR(1) bivariado estacionario --- acople cruzado $a_{12}$ y "
+           r"correlaci\'on contempor\'anea $\rho_\Sigma$",
+    "M-B": r"Bloque VAR de orden superior --- orden $p \in \{1,\dots,5\}$ y "
+           r"m\'odulo del mayor autovalor $\to 1$ (memoria larga)",
+    "M-C": r"Bloque Dimensionalidad creciente --- $k \in \{3,4,5,6\}$, "
+           r"estructura $A$ tridiagonal vs.\ densa",
+    "M-D": r"Bloque VAR + GARCH diagonal --- persistencia "
+           r"$\alpha+\beta \in \{0.80,\, 0.90,\, 0.95,\, 0.99\}$",
+    "M-E": r"Bloque Cointegraci\'on VECM bivariado (rango 1) --- velocidad de "
+           r"ajuste $\alpha_1 \in \{-0.1,\, -0.4,\, -0.7\}$ y vector $\beta$",
+    "M-F": r"Bloque VAR con autovalores complejos --- ciclos end\'ogenos "
+           r"(per\'iodo $\approx 4$--$10$)",
+    "M-G": r"Bloque Patrones de acople --- block-diagonal, cadena, "
+           r"hub-and-spoke, denso, banded ($k$ hasta 8)",
 }
+
+# Etiquetas de fila parametrizadas: parametro escalar real donde existe, con un
+# descriptor corto cuando el escenario es una matriz de coeficientes completa.
+# $a_{ij}$=coeficiente VAR; $\rho_\Sigma$=correlacion contemporanea; p=orden;
+# k=dimension; $\alpha+\beta$=persistencia GARCH; $\alpha_1$=ajuste VECM.
+ROW_LABELS = {
+    "M-A.1":  r"interdep.\ baja ($a_{12}{=}0.1$, $\rho_\Sigma{=}0.3$)",
+    "M-A.2":  r"interdep.\ alta ($a_{12}{=}0.4$, $\rho_\Sigma{=}0.3$)",
+    "M-A.3":  r"persist.\ asim\'etrica ($a_{11}{=}0.7$, $a_{22}{=}0.3$, sin acople)",
+    "M-A.4":  r"causal.\ $Y_1\rightarrow Y_2$ ($a_{12}{=}0.3$, $a_{21}{=}0$)",
+    "M-A.5":  r"off-diag y $\Sigma$ negativos ($a_{12}{=}-0.3$, $\rho_\Sigma{=}-0.4$)",
+    "M-A.6":  r"casi ruido blanco ($a_{11}{=}0.2$, $\rho_\Sigma{=}0.1$)",
+    "M-A.7":  r"$\Sigma$ contemp.\ fuerte ($\rho_\Sigma{=}0.7$)",
+    "M-A.8":  r"$\Sigma{=}I$ (sin acople contemp.)",
+    "M-A.9":  r"$\Sigma$ casi-colineal ($\rho_\Sigma{=}0.9$)",
+    "M-A.10": r"$\Sigma$ fuerte negativa ($\rho_\Sigma{=}-0.7$)",
+    "M-A.11": r"causal.\ $Y_2\rightarrow Y_1$ ($a_{21}{=}0.3$, $a_{12}{=}0$)",
+    "M-A.12": r"anti-persistencia ($a_{11}{=}-0.6$)",
+    "M-B.1":  r"VAR(2) base ($p{=}2$)",
+    "M-B.2":  r"VAR(2) cruce en lag 2 ($p{=}2$)",
+    "M-B.3":  r"VAR(3) decaim.\ geom\'etrico ($p{=}3$)",
+    "M-B.4":  r"VAR(4) memoria larga ($p{=}4$)",
+    "M-B.5":  r"VAR(1) cerca ra\'iz unit.\ ($a_{11}{=}0.95$)",
+    "M-B.6":  r"VAR(2) cerca ra\'iz unit.\ ($p{=}2$)",
+    "M-B.7":  r"VAR(2) $k{=}3$ cruce en lag 2",
+    "M-B.8":  r"VAR(5) $k{=}2$ memoria muy larga ($p{=}5$)",
+    "M-B.9":  r"VAR(1) casi-explosivo ($|\lambda|{\approx}0.99$)",
+    "M-C.1":  r"$k{=}3$ tridiagonal",
+    "M-C.2":  r"$k{=}4$ tridiagonal",
+    "M-C.3":  r"$k{=}5$ tridiagonal",
+    "M-C.4":  r"$k{=}5$ densa",
+    "M-C.5":  r"$k{=}6$ tridiagonal",
+    "M-D.1":  r"GARCH base ($\alpha{+}\beta{=}0.90$)",
+    "M-D.2":  r"GARCH reactivo ($\alpha{=}0.30$, $\alpha{+}\beta{=}0.90$)",
+    "M-D.3":  r"casi IGARCH ($\alpha{+}\beta{=}0.95$)",
+    "M-D.4":  r"media persistente + GARCH ($\alpha{+}\beta{=}0.90$)",
+    "M-D.5":  r"GARCH asim\'etrico ($\alpha{+}\beta{=}0.70$ y $0.95$)",
+    "M-D.6":  r"GARCH $k{=}3$ ($\alpha{+}\beta{=}0.90$)",
+    "M-D.7":  r"GARCH reactivo bajo ($\alpha{+}\beta{=}0.80$)",
+    "M-D.8":  r"casi-IGARCH genuino ($\alpha{+}\beta{=}0.99$)",
+    "M-D.9":  r"alta interdep.\ + GARCH ($\alpha{+}\beta{=}0.90$)",
+    "M-E.1":  r"ajuste medio ($\alpha_1{=}-0.4$)",
+    "M-E.2":  r"ajuste lento ($\alpha_1{=}-0.1$)",
+    "M-E.3":  r"ajuste r\'apido ($\alpha_1{=}-0.7$)",
+    "M-E.4":  r"cointegr.\ no 1:1 ($\beta{=}[1,-2]$)",
+    "M-E.5":  r"din\'am.\ corta cruzada + $\Sigma$ corr.",
+    "M-E.6":  r"sin din\'am.\ corta ($\Gamma_1{=}0$)",
+    "M-E.7":  r"ajuste asim\'etrico ($\alpha_2{=}0$)",
+    "M-E.8":  r"$\Sigma$ correlac.\ negativa",
+    "M-F.1":  r"ciclo lento (per\'iodo $\approx 10$)",
+    "M-F.2":  r"ciclo marcado (per\'iodo $\approx 6$)",
+    "M-F.3":  r"flip per\'iodo-2",
+    "M-G.1":  r"block-diagonal ($k{=}4$, 2 subsistemas)",
+    "M-G.2":  r"cadena $Y_1\rightarrow Y_2\rightarrow Y_3$ ($k{=}3$)",
+    "M-G.3":  r"denso uniforme ($k{=}3$, $a_{ij}{=}0.25$)",
+    "M-G.4":  r"hub-and-spoke ($k{=}4$)",
+    "M-G.5":  r"retroaliment.\ negativa ($k{=}3$)",
+    "M-G.6":  r"VAR(2) sparse ($k{=}4$, $p{=}2$)",
+    "M-G.7":  r"banded ($k{=}8$)",
+    "M-G.8":  r"autovalores mixtos ($k{=}3$)",
+    "M-G.9":  r"ciclo end\'ogeno ($k{=}3$)",
+}
+
+
+def row_label(exp_id: str, descriptions: dict[str, str]) -> str:
+    """Etiqueta de fila: usa la parametrizada de ROW_LABELS si existe; si no,
+    cae en la descripcion de la notebook (y por ultimo el propio id)."""
+    return ROW_LABELS.get(exp_id) or descriptions.get(exp_id, exp_id)
 
 
 def _block_header_row(block_letter: str, total_cols: int) -> str:
@@ -333,7 +401,7 @@ def build_full_summary_for_T(
 
         exp_id = f"{block_letter}.{idx}"
         df = load_csv(block_letter, idx, T)
-        label = descriptions.get(exp_id, exp_id)
+        label = row_label(exp_id, descriptions)
         if df is None or df.empty:
             # El experimento no corrio este T: fila con celdas vacias.
             cells = [ratio_cell(float("nan"))] * (n_blocks * n_metrics)
@@ -437,7 +505,7 @@ def build_combined_summary(
             prev_block = block_letter
 
         exp_id = f"{block_letter}.{idx_exp}"
-        label = descriptions.get(exp_id, exp_id)
+        label = row_label(exp_id, descriptions)
         cells: list[str] = []
         any_data = False
         for T, blocks in layout:

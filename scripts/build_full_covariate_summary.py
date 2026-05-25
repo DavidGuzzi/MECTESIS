@@ -67,24 +67,62 @@ EXP_RE = re.compile(r"^exp_(C-[A-J])_(\d+)_T(\d+)_R" + str(R) + r"\.csv$")
 # Resumen en lenguaje llano de cada bloque, para el renglon de cabecera que
 # antecede a sus experimentos. Tomado de los encabezados "## Bloque C-X --".
 BLOCK_SUMMARY = {
-    "C-A": r"Bloque ARIMAX(1) univariado --- dise\~no factorial "
-           r"$\beta$ (fuerza de la covariable) $\times\ \rho_x$ (persistencia de $X$)",
-    "C-B": r"Bloque ARIMAX con din\'amica AR m\'as rica --- "
-           r"$\phi \in \{0.9,\, -0.6,\, 0.99,\, 0.3\}$",
-    "C-C": r"Bloque ARIMAX con m\'ultiples covariables --- asim\'etricas, "
-           r"balanceadas, filtrado, signos opuestos, d\'ebiles",
-    "C-D": r"Bloque ARIMAX con volatilidad condicional (GARCH) --- canales de "
-           r"media y/o varianza",
-    "C-E": r"Bloque VARX bivariado --- promedio de las dos variables "
-           r"end\'ogenas $Y_1, Y_2$",
-    "C-F": r"Bloque Cointegraci\'on ADL-ECM --- Chronos comparado contra el "
-           r"modelo correcto ARDL-ECM",
-    "C-G": r"Bloque ARIMAX con tendencia determin\'istica lineal --- "
+    "C-A": r"Bloque ARIMAX(1) univariado --- factorial $\beta$ (fuerza de la "
+           r"covariable) $\in \{0.2,\, 0.5,\, 0.8\}$ $\times\ \rho_x$ "
+           r"(persistencia de $X$) $\in \{0,\, 0.7,\, 0.95\}$",
+    "C-B": r"Bloque ARIMAX, din\'amica AR del end\'ogeno --- "
+           r"$\phi \in \{0.3,\, 0.9,\, 0.99,\, -0.6\}$ ($\beta{=}0.5$ fijo)",
+    "C-C": r"Bloque ARIMAX con dos covariables --- pesos "
+           r"$\beta_1, \beta_2 \in \{-0.5,\dots,0.8\}$",
+    "C-D": r"Bloque ARIMAX-GARCH --- intensidad del canal de varianza "
+           r"$\delta_{\mathrm{var}} \in \{0,\, 0.1,\, 0.3,\, 0.5\}$",
+    "C-E": r"Bloque VARX bivariado --- carga ex\'ogena $\gamma$ y matriz $A$ "
+           r"(promedio de $Y_1, Y_2$)",
+    "C-F": r"Bloque Cointegraci\'on ADL-ECM --- velocidad de ajuste "
+           r"$\alpha_{\mathrm{ecm}} \in \{-0.1,\, -0.3,\, -0.6,\, -0.9\}$ "
+           r"(vs.\ ARDL-ECM correcto)",
+    "C-G": r"Bloque ARIMAX con tendencia lineal --- pendiente "
            r"$\delta \in \{0.05,\, 0.10,\, 0.20\}$",
-    "C-H": r"Bloque SARIMAX estacional con covariable --- $s \in \{4,\, 12\}$",
-    "C-I": r"Bloque Relaci\'on se\~nal/ruido --- variaci\'on de $\sigma_y$ y $\sigma_x$",
-    "C-J": r"Bloque Interacci\'on din\'amica AR $\times$ persistencia de $X$",
+    "C-H": r"Bloque SARIMAX estacional --- $s \in \{4,\, 12\}$, AR estacional "
+           r"$\Phi \in \{0.4,\, 0.7\}$, $\beta \in \{0.5,\, 0.8\}$",
+    "C-I": r"Bloque Relaci\'on se\~nal/ruido --- $\sigma_y \in \{0.5,\, 2.0\}$ y "
+           r"$\sigma_x \in \{0.5,\, 2.0\}$",
+    "C-J": r"Bloque Interacci\'on $\phi \times \rho_x$ --- AR del end\'ogeno "
+           r"$\phi \in \{0.3,\, 0.9\}$ y persistencia de $X$ $\rho_x \in \{0,\, 0.95\}$",
 }
+
+# Etiquetas de fila parametrizadas para los bloques cuya descripcion en la
+# notebook es cualitativa (C-C, C-D, C-E, C-G). El resto (C-A/B/F/H/I/J) ya sale
+# parametrizado desde la notebook y se deja pasar tal cual.
+ROW_LABELS = {
+    "C-C.1": r"2 cov asim\'etricas ($\beta_1{=}0.8$, $\beta_2{=}0.4$)",
+    "C-C.2": r"2 cov balanceadas ($\beta_1{=}\beta_2{=}0.5$)",
+    "C-C.3": r"2 cov, una nula ($\beta_1{=}0.8$, $\beta_2{=}0$)",
+    "C-C.4": r"2 cov signos opuestos ($\beta_1{=}0.8$, $\beta_2{=}-0.5$)",
+    "C-C.5": r"2 cov d\'ebiles ($\beta_1{=}\beta_2{=}0.3$)",
+    "C-D.1": r"solo media ($\delta_{\mathrm{var}}{=}0$)",
+    "C-D.2": r"media + varianza ($\delta_{\mathrm{var}}{=}0.1$)",
+    "C-D.3": r"solo varianza ($\beta_{\mathrm{media}}{=}0$, $\delta_{\mathrm{var}}{=}0.3$)",
+    "C-D.4": r"varianza fuerte ($\delta_{\mathrm{var}}{=}0.5$)",
+    "C-D.5": r"GARCH persistente ($\alpha{=}0.2$, $\delta_{\mathrm{var}}{=}0.1$)",
+    "C-E.1": r"baseline ($\gamma{=}[0.5,0.3]$)",
+    "C-E.2": r"dependencia fuerte ($a_{12}{=}0.3$, $\gamma_1{=}0.8$)",
+    "C-E.3": r"efecto ex\'ogeno d\'ebil ($\gamma{=}[0.2,0.2]$)",
+    "C-E.4": r"causal.\ $Y_1\rightarrow Y_2$ ($a_{21}{=}0.4$)",
+    "C-E.5": r"$\Sigma$ negativa ($\rho_\Sigma{=}-0.5$)",
+    "C-E.6": r"casi-explosivo ($a_{11}{=}0.7$, $a_{12}{=}0.2$)",
+    "C-G.1": r"tendencia leve ($\delta{=}0.05$)",
+    "C-G.2": r"tendencia fuerte ($\delta{=}0.10$)",
+    "C-G.3": r"tend.\ leve + cov fuerte ($\delta{=}0.05$, $\beta{=}0.8$)",
+    "C-G.4": r"tend.\ fuerte + cov fuerte ($\delta{=}0.10$, $\beta{=}0.8$)",
+    "C-G.5": r"tendencia muy fuerte ($\delta{=}0.20$)",
+}
+
+
+def row_label(exp_id: str, descriptions: dict[str, str]) -> str:
+    """Etiqueta de fila: usa la parametrizada de ROW_LABELS si existe; si no,
+    cae en la descripcion de la notebook (y por ultimo el propio id)."""
+    return ROW_LABELS.get(exp_id) or descriptions.get(exp_id, exp_id)
 
 
 def _block_header_row(block_letter: str, total_cols: int) -> str:
@@ -338,7 +376,7 @@ def build_full_summary_for_T(
 
         exp_id = f"{block_letter}.{idx}"
         df = load_csv(block_letter, idx, T)
-        label = descriptions.get(exp_id, exp_id)
+        label = row_label(exp_id, descriptions)
         if df is None or df.empty:
             cells = [ratio_cell(float("nan"))] * (n_blocks * n_metrics)
             lines.append(label + " & " + " & ".join(cells) + r" \\")
@@ -441,7 +479,7 @@ def build_combined_summary(
             prev_block = block_letter
 
         exp_id = f"{block_letter}.{idx_exp}"
-        label = descriptions.get(exp_id, exp_id)
+        label = row_label(exp_id, descriptions)
         cells: list[str] = []
         any_data = False
         for T, blocks in layout:
