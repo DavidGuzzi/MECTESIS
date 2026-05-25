@@ -63,29 +63,55 @@ METRIC_LABELS = {
 EXP_RE = re.compile(r"^exp_([A-G])_(\d+)_T50_R" + str(R) + r"\.csv$")
 
 # Resumen en lenguaje llano de cada bloque, para el renglon de cabecera que
-# antecede a sus experimentos (le dice al lector que va a encontrar).
+# antecede a sus experimentos (le dice al lector que va a encontrar). Los bloques
+# A/B originales (procesos ARMA con y sin tendencia) se fusionan por familia del
+# proceso (AR/MA/ARMA); el resto conserva su agrupamiento. Las claves de este
+# dict son las claves de grupo que devuelve group_key(), no las letras del CSV.
 BLOCK_SUMMARY = {
-    "A": r"Bloque A --- Procesos ARMA estacionarios sin tendencia: "
-         r"AR(1)--AR(4), MA(1)--MA(4) y ARMA, con coeficientes "
-         r"$\rho,\theta \in \{0.30,\, 0.90\}$",
-    "B": r"Bloque B --- Mismos procesos ARMA con tendencia determin\'istica "
-         r"lineal ($\delta \in \{0.02,\, 0.10\}$)",
-    "C": r"Bloque C --- Caminata aleatoria (ra\'iz unitaria): sin drift y con "
-         r"drift $\delta \in \{0.05,\, 0.20\}$",
-    "D": r"Bloque D --- Volatilidad condicional: AR(1) con errores ARCH(1) y "
-         r"GARCH(1,1), de baja a alta persistencia",
-    "E": r"Bloque E --- Suavizado exponencial (ETS: nivel, tendencia y "
+    "AR":   r"Bloque Procesos AR --- $p$ (orden autorregresivo) $\in \{1,2,3,4\}$, "
+            r"$\rho$ (persistencia) $\in \{0.30,\, 0.90\}$, "
+            r"$\delta$ (tendencia) $\in \{0,\, 0.02,\, 0.10\}$",
+    "MA":   r"Bloque Procesos MA --- $q$ (orden de media m\'ovil) $\in \{1,2,3,4\}$, "
+            r"$\theta$ (persistencia) $\in \{0.30,\, 0.90\}$, "
+            r"$\delta$ (tendencia) $\in \{0,\, 0.02,\, 0.10\}$",
+    "ARMA": r"Bloque Procesos ARMA --- \'ordenes $(p,q) \in \{(1,1),(2,2),(1,4),(4,1)\}$, "
+            r"$\rho$ (persistencia) $\in \{0.30,\, 0.90\}$, "
+            r"$\delta$ (tendencia) $\in \{0,\, 0.02,\, 0.10\}$",
+    "C": r"Bloque Caminata aleatoria --- ra\'iz unitaria con deriva "
+         r"$\delta \in \{0,\, 0.05,\, 0.20\}$",
+    "D": r"Bloque Volatilidad condicional --- AR(1) con errores ARCH(1) "
+         r"($\alpha \in \{0.10,\, 0.50\}$) y GARCH(1,1) "
+         r"($\alpha+\beta \in \{0.50,\, 0.95\}$)",
+    "E": r"Bloque Suavizado exponencial --- ETS (nivel, tendencia y "
          r"estacionalidad) y m\'etodo Theta",
-    "F": r"Bloque F --- Procesos estacionales SARIMA ($s=4$ y $s=12$), "
-         r"estacionarios e integrados",
-    "G": r"Bloque G --- Modelos no lineales de umbral: SETAR, LSTAR y ESTAR",
+    "F": r"Bloque Estacionales SARIMA --- $s \in \{4,\, 12\}$, estacionarios e "
+         r"integrados",
+    "G": r"Bloque No lineales de umbral --- SETAR, LSTAR y ESTAR",
 }
 
+# Familia del proceso para los bloques A/B; clasifica por la descripcion (que
+# empieza por AR(.. / MA(.. / ARMA(..). ARMA antes que AR en la alternancia.
+_FAMILY_RE = re.compile(r"^(ARMA|AR|MA)\b")
+FAMILY_ORDER = {"AR": 0, "MA": 1, "ARMA": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7}
 
-def _block_header_row(block_letter: str, total_cols: int) -> str:
+
+def group_key(block_letter: str, idx: int, descriptions: dict[str, str]) -> str:
+    """Clave de bloque para el renglon de cabecera. Los bloques A/B (procesos
+    ARMA con y sin tendencia) se colapsan en su familia AR/MA/ARMA segun la
+    descripcion del experimento; el resto conserva su letra original."""
+    if block_letter in ("A", "B"):
+        m = _FAMILY_RE.match(descriptions.get(f"{block_letter}.{idx}", ""))
+        if m:
+            return m.group(1)
+        # Respaldo por indice: 8 AR, 8 MA, 8 ARMA por nivel de tendencia.
+        return ("AR", "MA", "ARMA")[((idx - 1) % 24) // 8]
+    return block_letter
+
+
+def _block_header_row(block_key: str, total_cols: int) -> str:
     """Renglon de cabecera (gris, negrita) que resume un bloque y abarca toda
     la fila."""
-    desc = BLOCK_SUMMARY.get(block_letter, f"Bloque {block_letter}")
+    desc = BLOCK_SUMMARY.get(block_key, f"Bloque {block_key}")
     return (rf"\multicolumn{{{total_cols}}}{{l}}{{\cellcolor{{gray!15}}"
             rf"\textbf{{{desc}}}}} \\")
 
@@ -294,11 +320,12 @@ def build_full_summary_for_T(
     total_cols = 1 + n_blocks * n_metrics
     prev_block: str | None = None
     for block_letter, idx in experiments:
-        if block_letter != prev_block:
+        g = group_key(block_letter, idx, descriptions)
+        if g != prev_block:
             if prev_block is not None:
                 lines.append(r"\midrule")
-            lines.append(_block_header_row(block_letter, total_cols))
-            prev_block = block_letter
+            lines.append(_block_header_row(g, total_cols))
+            prev_block = g
 
         exp_id = f"{block_letter}.{idx}"
         df = load_csv(block_letter, idx, T)
@@ -399,11 +426,12 @@ def build_combined_summary(
     total_cols = 1 + n_metrics * sum(len(b) for _, b in layout)
     prev_block: str | None = None
     for block_letter, idx_exp in experiments:
-        if block_letter != prev_block:
+        g = group_key(block_letter, idx_exp, descriptions)
+        if g != prev_block:
             if prev_block is not None:
                 lines.append(r"\midrule")
-            lines.append(_block_header_row(block_letter, total_cols))
-            prev_block = block_letter
+            lines.append(_block_header_row(g, total_cols))
+            prev_block = g
 
         exp_id = f"{block_letter}.{idx_exp}"
         label = descriptions.get(exp_id, exp_id)
@@ -538,6 +566,10 @@ def main() -> None:
         print(f"[err] No se encontraron experimentos en {RESULTS_DIR}")
         return
     descriptions = load_descriptions()
+    # Reordenar fusionando A/B por familia (AR, MA, ARMA) y manteniendo C..G.
+    experiments.sort(
+        key=lambda bi: (FAMILY_ORDER[group_key(bi[0], bi[1], descriptions)], bi[0], bi[1])
+    )
     missing = [f"{b}.{i}" for b, i in experiments if f"{b}.{i}" not in descriptions]
     print(f"[ok]  {len(experiments)} experimentos; {len(descriptions)} descripciones cargadas"
           + (f"; sin descripcion: {missing}" if missing else ""))

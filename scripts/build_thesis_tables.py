@@ -26,12 +26,12 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULTS_DIR = ROOT / "notebooks" / "results" / "univariate_vertexai"
-RESULTS_DIR_MULTI = ROOT / "notebooks" / "results" / "multivariate_vertexai"
-RESULTS_DIR_COV = ROOT / "notebooks" / "results" / "covariate_vertexai"
+RESULTS_DIR = ROOT / "notebooks" / "results" / "univariate_v5_vertexai"
+RESULTS_DIR_MULTI = ROOT / "notebooks" / "results" / "multivariate_v6_vertexai"
+RESULTS_DIR_COV = ROOT / "notebooks" / "results" / "covariate_v6_vertexai"
 TABLES_DIR = ROOT / "entrega" / "tesis" / "tables"
 
-T_LIST = [25, 50, 100, 200]
+T_LIST = [50, 100, 200]
 R = 500
 
 BLOCKS = [
@@ -40,7 +40,7 @@ BLOCKS = [
     ("Largo", 19, 24),
 ]
 
-H_BY_T = {25: 6, 50: 18, 100: 24, 200: 24}
+H_BY_T = {50: 6, 100: 18, 200: 24}
 
 METRICS = ["bias", "variance", "rmse", "crps"]
 METRIC_LABELS = {
@@ -57,28 +57,29 @@ class ExpConfig:
     csv_prefix: str       # prefijo del CSV (e.g. "A_4")
     classical_label: str  # como mostrarlo en la tabla LaTeX
     short_label: str      # etiqueta breve para la tabla de sintesis
+    section: str          # nombre de la subsubseccion para el caption
 
 
 EXPERIMENTS = {
-    "4_1": ExpConfig("A.4",  "A_4",  r"ARIMA(2,0,0)",                          r"AR(2)"),
-    "4_2": ExpConfig("B.26", "B_26", r"ARIMA(1,0,0)$+$trend",                  r"AR(1) $+$ tendencia"),
-    "4_3": ExpConfig("C.2",  "C_2",  r"RW $+$ drift",                          r"RW $+$ drift"),
-    "4_4": ExpConfig("D.4",  "D_4",  r"AR(1)$+$GARCH(1,1)",                    r"AR(1) $+$ GARCH"),
-    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)"),
-    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$"),
-    "4_7": ExpConfig("G.3",  "G_3",  r"AR(1) lineal",                          r"LSTAR(1)"),
+    "4_1": ExpConfig("A.4",  "A_4",  r"ARIMA(2,0,0)",                          r"AR(2)",                 r"procesos autoregresivos estacionarios"),
+    "4_2": ExpConfig("B.26", "B_26", r"ARIMA(1,0,0)$+$trend",                  r"AR(1) $+$ tendencia",   r"procesos con tendencia determin\'istica"),
+    "4_3": ExpConfig("C.2",  "C_2",  r"RW $+$ drift",                          r"RW $+$ drift",          r"procesos integrados y no estacionarios"),
+    "4_4": ExpConfig("D.4",  "D_4",  r"AR(1)$+$GARCH(1,1)",                    r"AR(1) $+$ GARCH",       r"procesos con heteroscedasticidad condicional"),
+    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)",            r"procesos con tendencia y estacionalidad"),
+    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$",       r"procesos autoregresivos estacionales"),
+    "4_7": ExpConfig("G.3",  "G_3",  r"AR(1) lineal",                          r"LSTAR(1)",              r"procesos no lineales con cambio de r\'egimen"),
 }
 
 EXPERIMENTS_MULTI = {
-    "5_1": ExpConfig("M-A.2", "M-A_2", r"VAR(1)",                                r"VAR(1) bivariado"),
-    "5_2": ExpConfig("M-C.5", "M-C_5", r"VAR(1) $k{=}6$",                        r"VAR(1) $k{=}6$"),
-    "5_3": ExpConfig("M-E.1", "M-E_1", r"VECM($r{=}1$)",                         r"VECM"),
+    "5_1": ExpConfig("M-A.2", "M-A_2", r"VAR(1)",                                r"VAR(1) bivariado",    r"procesos vectoriales con interdependencia contempor\'anea"),
+    "5_2": ExpConfig("M-C.1", "M-C_1", r"VAR(1) $k{=}3$",                        r"VAR(1) $k{=}3$",      r"procesos vectoriales de alta dimensi\'on"),
+    "5_3": ExpConfig("M-E.1", "M-E_1", r"VECM($r{=}1$)",                         r"VECM",                r"procesos cointegrados"),
 }
 
 EXPERIMENTS_COV = {
-    "6_1": ExpConfig("C-A.1", "C-A_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ fuerte"),
-    "6_2": ExpConfig("C-D.1", "C-D_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ con GARCH"),
-    "6_3": ExpConfig("C-H.4", "C-H_4", r"SARIMAX$(1,0,0)(1,0,0)_{12}+X$",        r"SARIMAX estac. $+X$"),
+    "6_1": ExpConfig("C-A.1", "C-A_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ fuerte",     r"procesos con covariable ex\'ogena de efecto fuerte"),
+    "6_2": ExpConfig("C-D.1", "C-D_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ con GARCH",  r"procesos con covariable bajo heteroscedasticidad condicional"),
+    "6_3": ExpConfig("C-H.4", "C-H_4", r"SARIMAX$(1,0,0)(1,0,0)_{12}+X$",        r"SARIMAX estac. $+X$",     r"procesos con covariable bajo estacionalidad mensual"),
 }
 
 
@@ -223,12 +224,8 @@ def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR) -> str:
     lines.append(r"\begin{table}[H]")
     lines.append(r"\centering")
     lines.append(r"\setlength{\tabcolsep}{4pt}")
-    lines.append(
-        rf"\caption*{{Experimento {cfg.exp_id} --- bias, varianza, RMSE y CRPS por "
-        r"tama\~no muestral y bloque de horizonte. El color de fondo y "
-        r"$\blacktriangle$ marcan al ganador de cada m\'etrica para ese par "
-        r"$(T, \text{bloque}\!-\!h)$. $R = 500$ r\'eplicas.}"
-    )
+    lines.append(rf"\caption{{Resultados de {cfg.section}.}}")
+    lines.append(rf"\label{{tab:exp_{cfg.csv_prefix.replace('-', '').lower()}}}")
     lines.append(r"\resizebox{\textwidth}{!}{%")
     lines.append(r"\begin{tabular}{ll cccc cccc cccc}")
     lines.append(r"\toprule")
@@ -277,9 +274,8 @@ def ratio_cell(ratio: float) -> str:
 
 # Para la sintesis: que bloques H aplican a cada T.
 SUMMARY_LAYOUT: list[tuple[int, list[str]]] = [
-    (25,  ["Corto"]),
-    (50,  ["Corto", "Medio"]),
-    (100, ["Corto", "Medio", "Largo"]),
+    (50,  ["Corto"]),
+    (100, ["Corto", "Medio"]),
     (200, ["Corto", "Medio", "Largo"]),
 ]
 BLOCK_RANGES = {name: (lo, hi) for name, lo, hi in BLOCKS}
@@ -334,15 +330,11 @@ def build_summary_table(
     lines.append(r"\begin{table}[H]")
     lines.append(r"\centering")
     lines.append(r"\setlength{\tabcolsep}{5pt}")
+    lines.append(rf"\caption{{Resultados de la s\'intesis del bloque {block_name}.}}")
     lines.append(
-        rf"\caption*{{S\'intesis del bloque {block_name} --- cociente "
-        rf"${metric_label_math}_{{\mathrm{{Chronos}}}}/{metric_label_math}_{{\mathrm{{cl}}}}$ "
-        r"por experimento, tama\~no muestral $T$ y bloque de horizonte. "
-        r"Valores $< 1$ (fondo p\'urpura, $\blacktriangle$) favorecen a Chronos-2; "
-        r"valores $> 1$ (fondo azul, $\blacktriangle$) favorecen al cl\'asico. "
-        r"$R = 500$ r\'eplicas.}"
+        rf"\label{{tab:sintesis_{block_name.replace(' ', '_')}_{metric}}}"
     )
-    lines.append(r"\resizebox{\textwidth}{!}{%")
+    lines.append(r"\small")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
     lines.append(r"\toprule")
 
@@ -369,8 +361,7 @@ def build_summary_table(
         lines.append(label + " & " + " & ".join(cells) + r" \\")
 
     lines.append(r"\bottomrule")
-    lines.append(r"\end{tabular}%")
-    lines.append(r"}")
+    lines.append(r"\end{tabular}")
     lines.append(r"\end{table}")
     return "\n".join(lines) + "\n"
 

@@ -67,26 +67,23 @@ EXP_RE = re.compile(r"^exp_(C-[A-J])_(\d+)_T(\d+)_R" + str(R) + r"\.csv$")
 # Resumen en lenguaje llano de cada bloque, para el renglon de cabecera que
 # antecede a sus experimentos. Tomado de los encabezados "## Bloque C-X --".
 BLOCK_SUMMARY = {
-    "C-A": r"Bloque C-A --- ARIMAX(1) univariado: dise\~no factorial "
-           r"$\beta \times \rho_x$ (fuerza de la covariable y su persistencia)",
-    "C-B": r"Bloque C-B --- ARIMAX con din\'amica AR m\'as rica "
-           r"($\phi \in \{0.9,\, -0.6,\, 0.99,\, 0.3\}$)",
-    "C-C": r"Bloque C-C --- ARIMAX con m\'ultiples covariables "
-           r"(asimetricas, balanceadas, filtrado, signos opuestos, debiles)",
-    "C-D": r"Bloque C-D --- ARIMAX con volatilidad condicional (GARCH): "
-           r"canales de media y/o varianza",
-    "C-E": r"Bloque C-E --- VARX bivariado (promedio de las dos variables "
-           r"end\'ogenas $Y_1, Y_2$)",
-    "C-F": r"Bloque C-F --- Cointegraci\'on ADL-ECM (Chronos comparado contra "
-           r"el modelo correcto ARDL-ECM)",
-    "C-G": r"Bloque C-G --- ARIMAX con tendencia determin\'istica lineal "
-           r"($\delta \in \{0.05,\, 0.10,\, 0.20\}$)",
-    "C-H": r"Bloque C-H --- SARIMAX estacional con covariable "
-           r"($s \in \{4,\, 12\}$)",
-    "C-I": r"Bloque C-I --- Relaci\'on se\~nal/ruido (variaci\'on de "
-           r"$\sigma_y$ y $\sigma_x$) --- nuevo en v6",
-    "C-J": r"Bloque C-J --- Interacci\'on din\'amica AR $\times$ persistencia "
-           r"de $X$ --- nuevo en v6",
+    "C-A": r"Bloque ARIMAX(1) univariado --- dise\~no factorial "
+           r"$\beta$ (fuerza de la covariable) $\times\ \rho_x$ (persistencia de $X$)",
+    "C-B": r"Bloque ARIMAX con din\'amica AR m\'as rica --- "
+           r"$\phi \in \{0.9,\, -0.6,\, 0.99,\, 0.3\}$",
+    "C-C": r"Bloque ARIMAX con m\'ultiples covariables --- asim\'etricas, "
+           r"balanceadas, filtrado, signos opuestos, d\'ebiles",
+    "C-D": r"Bloque ARIMAX con volatilidad condicional (GARCH) --- canales de "
+           r"media y/o varianza",
+    "C-E": r"Bloque VARX bivariado --- promedio de las dos variables "
+           r"end\'ogenas $Y_1, Y_2$",
+    "C-F": r"Bloque Cointegraci\'on ADL-ECM --- Chronos comparado contra el "
+           r"modelo correcto ARDL-ECM",
+    "C-G": r"Bloque ARIMAX con tendencia determin\'istica lineal --- "
+           r"$\delta \in \{0.05,\, 0.10,\, 0.20\}$",
+    "C-H": r"Bloque SARIMAX estacional con covariable --- $s \in \{4,\, 12\}$",
+    "C-I": r"Bloque Relaci\'on se\~nal/ruido --- variaci\'on de $\sigma_y$ y $\sigma_x$",
+    "C-J": r"Bloque Interacci\'on din\'amica AR $\times$ persistencia de $X$",
 }
 
 

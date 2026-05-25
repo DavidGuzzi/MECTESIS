@@ -69,19 +69,19 @@ EXP_RE = re.compile(r"^exp_(M-[A-G])_(\d+)_T(\d+)_R" + str(R) + r"\.csv$")
 # antecede a sus experimentos (le dice al lector que va a encontrar). Tomado de
 # los encabezados "## Bloque M-X --" de la notebook v6.
 BLOCK_SUMMARY = {
-    "M-A": r"Bloque M-A --- VAR(1) bivariado estacionario: distintos patrones "
-           r"de dependencia cruzada y de correlacion contemporanea $\Sigma$",
-    "M-B": r"Bloque M-B --- VAR de orden superior ($p \ge 2$) y cerca de la "
-           r"ra\'iz unitaria (memoria larga)",
-    "M-C": r"Bloque M-C --- Dimensionalidad creciente ($k = 3 \dots 6$): "
+    "M-A": r"Bloque VAR(1) bivariado estacionario --- distintos patrones de "
+           r"dependencia cruzada y correlaci\'on contempor\'anea $\Sigma$",
+    "M-B": r"Bloque VAR de orden superior --- $p \ge 2$ y cerca de la ra\'iz "
+           r"unitaria (memoria larga)",
+    "M-C": r"Bloque Dimensionalidad creciente --- $k \in \{3,4,5,6\}$: "
            r"estructuras tridiagonales y densas",
-    "M-D": r"Bloque M-D --- VAR + GARCH diagonal: heteroscedasticidad "
-           r"condicional, de baja a alta persistencia",
-    "M-E": r"Bloque M-E --- Cointegraci\'on VECM bivariado (rango 1): "
-           r"velocidad y simetr\'ia del ajuste al equilibrio",
-    "M-F": r"Bloque M-F --- VAR con eigenvalores complejos: ciclos endogenos "
+    "M-D": r"Bloque VAR + GARCH diagonal --- heteroscedasticidad condicional, "
+           r"de baja a alta persistencia",
+    "M-E": r"Bloque Cointegraci\'on VECM bivariado --- rango 1: velocidad y "
+           r"simetr\'ia del ajuste al equilibrio",
+    "M-F": r"Bloque VAR con eigenvalores complejos --- ciclos end\'ogenos "
            r"(lentos, marcados, flip de periodo 2)",
-    "M-G": r"Bloque M-G --- Patrones de acople sistematicos: block-diagonal, "
+    "M-G": r"Bloque Patrones de acople sistem\'aticos --- block-diagonal, "
            r"cadena, hub-and-spoke, denso, banded ($k$ hasta 8)",
 }
 
