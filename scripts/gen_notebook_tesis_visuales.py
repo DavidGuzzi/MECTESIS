@@ -73,6 +73,11 @@ plt.rcParams.update({
     "figure.dpi": 110,
     "savefig.dpi": 300,
     "savefig.bbox": "tight",
+    # Tipografía: serif tipo Computer Modern para coincidir con main.tex (pdflatex default).
+    "font.family": "serif",
+    "font.serif": ["CMU Serif", "Computer Modern Roman", "STIX Two Text", "DejaVu Serif"],
+    "mathtext.fontset": "cm",
+    "mathtext.rm": "serif",
     "font.size": 9,
     "axes.titlesize": 10,
     "axes.labelsize": 9,
@@ -85,17 +90,12 @@ plt.rcParams.update({
 CHRONOS_COLOR  = "#9672B6"
 CLASSIC_COLOR  = "#4C72B0"
 MODEL_COLORS = {
-    # univariados
-    "AutoARIMA":           CLASSIC_COLOR,
-    "AutoETS":             CLASSIC_COLOR,
-    "AutoTheta":           CLASSIC_COLOR,
-    "Chronos-2":           CHRONOS_COLOR,
-    # multivariados
-    "VECM(r=1)":           CLASSIC_COLOR,
-    "ChronosMultivariate": CHRONOS_COLOR,
-    # covariables
-    "AutoSARIMAX":         CLASSIC_COLOR,
-    "ChronosCov":          CHRONOS_COLOR,
+    "AutoARIMA":   CLASSIC_COLOR,
+    "AutoETS":     CLASSIC_COLOR,
+    "AutoTheta":   CLASSIC_COLOR,
+    "VECM(r=1)":   CLASSIC_COLOR,
+    "AutoSARIMAX": CLASSIC_COLOR,
+    "Chronos-2":   CHRONOS_COLOR,
 }
 
 # Pipeline Chronos compartido entre las 3 secciones (uni, multi, cov)
@@ -183,8 +183,8 @@ Y = pd.concat({
 print(f"Y: {Y.shape}, columnas: {Y.columns.tolist()}")
 
 multi_factories_visual = {
-    "VECM(r=1)":           lambda: VECMModel(coint_rank=1, k_ar_diff=1),
-    "ChronosMultivariate": lambda: ChronosMultivariateModel(chronos_pipeline),
+    "VECM(r=1)": lambda: VECMModel(coint_rank=1, k_ar_diff=1),
+    "Chronos-2": lambda: ChronosMultivariateModel(chronos_pipeline),
 }
 multi_forecasts = predict_all_at_last_origin(
     factories=multi_factories_visual,
@@ -230,7 +230,7 @@ print(f"X_lagged: {X_lagged.shape}, pi_lag: {pi_lag.shape}")
 
 cov_factories = {
     "AutoSARIMAX": lambda: AutoSARIMAXModel(season_length=12),
-    "ChronosCov":  lambda: ChronosCovariateModel(
+    "Chronos-2":   lambda: ChronosCovariateModel(
         chronos_pipeline,
         n_covariates=X_lagged.shape[1],
         cov_names=list(X_lagged.columns),

@@ -50,6 +50,19 @@ METRIC_LABELS = {
     "crps":     r"CRPS",
 }
 
+# Bloque multivariado: medidas conjuntas (filas agregadas var=-1 del CSV).
+MULTI_METRICS = ["trace_msfe", "avg_crps"]
+MULTI_METRIC_LABELS = {
+    "trace_msfe": r"Trace MSFE",
+    "avg_crps":   r"avgCRPS",
+}
+
+# Nombre legible de cada metrica para los captions de las tablas de sintesis.
+SUMMARY_METRIC_DISPLAY = {
+    "rmse": "RMSE", "crps": "CRPS",
+    "trace_msfe": "Trace MSFE", "avg_crps": "avgCRPS",
+}
+
 
 @dataclass
 class ExpConfig:
@@ -58,32 +71,34 @@ class ExpConfig:
     classical_label: str  # como mostrarlo en la tabla LaTeX
     short_label: str      # etiqueta breve para la tabla de sintesis
     section: str          # nombre de la subsubseccion para el caption
+    chapter_num: str      # numero de seccion del capitulo (e.g. "3.2.1")
 
 
 EXPERIMENTS = {
-    "4_1": ExpConfig("A.4",  "A_4",  r"ARIMA(2,0,0)",                          r"AR(2)",                 r"procesos autoregresivos estacionarios"),
-    "4_2": ExpConfig("B.26", "B_26", r"ARIMA(1,0,0)$+$trend",                  r"AR(1) $+$ tendencia",   r"procesos con tendencia determin\'istica"),
-    "4_3": ExpConfig("C.2",  "C_2",  r"RW $+$ drift",                          r"RW $+$ drift",          r"procesos integrados y no estacionarios"),
-    "4_4": ExpConfig("D.4",  "D_4",  r"AR(1)$+$GARCH(1,1)",                    r"AR(1) $+$ GARCH",       r"procesos con heteroscedasticidad condicional"),
-    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)",            r"procesos con tendencia y estacionalidad"),
-    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$",       r"procesos autoregresivos estacionales"),
-    "4_7": ExpConfig("G.3",  "G_3",  r"AR(1) lineal",                          r"LSTAR(1)",              r"procesos no lineales con cambio de r\'egimen"),
+    "4_1": ExpConfig("A.4",  "A_4",  r"AR(2)",                                 r"AR(2)",                 r"procesos autoregresivos estacionarios",            "3.2.1"),
+    "4_2": ExpConfig("B.26", "B_26", r"AR(1)$+$trend",                         r"AR(1) $+$ tendencia",   r"procesos con tendencia determin\'istica",          "3.2.2"),
+    "4_3": ExpConfig("C.2",  "C_2",  r"RW $+$ drift",                          r"RW $+$ drift",          r"procesos integrados y no estacionarios",           "3.2.3"),
+    "4_4": ExpConfig("D.4",  "D_4",  r"AR(1)$+$GARCH(1,1)",                    r"AR(1) $+$ GARCH",       r"procesos con heteroscedasticidad condicional",     "3.2.4"),
+    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)",            r"procesos con tendencia y estacionalidad",          "3.2.5"),
+    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$",       r"procesos autoregresivos estacionales",             "3.2.6"),
+    "4_7": ExpConfig("G.3",  "G_3",  r"AR(1) lineal",                          r"LSTAR(1)",              r"procesos no lineales con cambio de r\'egimen",     "3.2.7"),
 }
 
 EXPERIMENTS_MULTI = {
-    "5_1": ExpConfig("M-A.2", "M-A_2", r"VAR(1)",                                r"VAR(1) bivariado",    r"procesos vectoriales con interdependencia contempor\'anea"),
-    "5_2": ExpConfig("M-C.1", "M-C_1", r"VAR(1) $k{=}3$",                        r"VAR(1) $k{=}3$",      r"procesos vectoriales de alta dimensi\'on"),
-    "5_3": ExpConfig("M-E.1", "M-E_1", r"VECM($r{=}1$)",                         r"VECM",                r"procesos cointegrados"),
+    "5_1": ExpConfig("M-A.2", "M-A_2", r"VAR(1)",                                r"VAR(1) bivariado",    r"procesos vectoriales con interdependencia contempor\'anea", "3.3.1"),
+    "5_2": ExpConfig("M-C.1", "M-C_1", r"VAR(1) $k{=}3$",                        r"VAR(1) $k{=}3$",      r"procesos vectoriales de alta dimensi\'on",                  "3.3.2"),
+    "5_3": ExpConfig("M-E.1", "M-E_1", r"VECM($r{=}1$)",                         r"VECM",                r"procesos cointegrados",                                     "3.3.3"),
 }
 
 EXPERIMENTS_COV = {
-    "6_1": ExpConfig("C-A.1", "C-A_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ fuerte",     r"procesos con covariable ex\'ogena de efecto fuerte"),
-    "6_2": ExpConfig("C-D.1", "C-D_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ con GARCH",  r"procesos con covariable bajo heteroscedasticidad condicional"),
-    "6_3": ExpConfig("C-H.4", "C-H_4", r"SARIMAX$(1,0,0)(1,0,0)_{12}+X$",        r"SARIMAX estac. $+X$",     r"procesos con covariable bajo estacionalidad mensual"),
+    "6_1": ExpConfig("C-A.1", "C-A_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ fuerte",     r"procesos con covariable ex\'ogena de efecto fuerte",            "3.4.1"),
+    "6_2": ExpConfig("C-D.1", "C-D_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ con GARCH",  r"procesos con covariable bajo heteroscedasticidad condicional",  "3.4.2"),
+    "6_3": ExpConfig("C-H.4", "C-H_4", r"SARIMAX$(1,0,0)(1,0,0)_{12}+X$",        r"SARIMAX estac. $+X$",     r"procesos con covariable bajo estacionalidad mensual",           "3.4.3"),
 }
 
 
-def load_csv(csv_prefix: str, T: int, data_dir: Path = RESULTS_DIR) -> pd.DataFrame | None:
+def load_csv(csv_prefix: str, T: int, data_dir: Path = RESULTS_DIR,
+             aggregate: bool = False) -> pd.DataFrame | None:
     path = data_dir / f"exp_{csv_prefix}_T{T}_R{R}.csv"
     if not path.exists():
         return None
@@ -91,17 +106,19 @@ def load_csv(csv_prefix: str, T: int, data_dir: Path = RESULTS_DIR) -> pd.DataFr
     df = df[df["horizon"].astype(str).str.match(r"^\d+$")].copy()
     df["horizon"] = df["horizon"].astype(int)
     # En CSV multivariados existe una columna `var` con un indice de variable
-    # (0..k-1) y filas con var=-1 que contienen metricas agregadas (trace_msfe,
-    # avg_crps). Descartamos las filas var=-1 para que el promedio sobre
-    # variables se haga solo con las metricas estandar.
+    # (0..k-1) y filas con var=-1 que contienen las metricas conjuntas agregadas
+    # (trace_msfe, avg_crps). Con aggregate=False nos quedamos con las filas por
+    # variable (var>=0) y promediamos las metricas marginales; con aggregate=True
+    # usamos directamente las filas var=-1 (medidas conjuntas).
     if "var" in df.columns:
-        df = df[df["var"].astype(str).str.match(r"^\d+$|^-?\d+$")].copy()
+        df = df[df["var"].astype(str).str.match(r"^-?\d+$")].copy()
         df["var"] = df["var"].astype(int)
-        df = df[df["var"] >= 0].copy()
+        df = df[df["var"] == -1].copy() if aggregate else df[df["var"] >= 0].copy()
     return df
 
 
-def aggregate_block(df: pd.DataFrame, h_lo: int, h_hi: int) -> dict[str, dict[str, float]]:
+def aggregate_block(df: pd.DataFrame, h_lo: int, h_hi: int,
+                    metrics: list[str] = METRICS) -> dict[str, dict[str, float]]:
     """Devuelve {model: {metric: valor_promedio_en_bloque}}.
 
     Si el DataFrame tiene columna `var` (caso multivariado), las metricas se
@@ -111,7 +128,7 @@ def aggregate_block(df: pd.DataFrame, h_lo: int, h_hi: int) -> dict[str, dict[st
     sub = df[(df["horizon"] >= h_lo) & (df["horizon"] <= h_hi)]
     out: dict[str, dict[str, float]] = {}
     for model, grp in sub.groupby("model"):
-        out[model] = {m: grp[m].mean() for m in METRICS if m in grp.columns}
+        out[model] = {m: grp[m].mean() for m in metrics if m in grp.columns}
     return out
 
 
@@ -175,17 +192,21 @@ def empty_cells() -> tuple[list[str], list[str]]:
     return blanks, blanks
 
 
-def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR) -> str:
+def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR,
+                metrics: list[str] = METRICS,
+                metric_labels: dict[str, str] = METRIC_LABELS,
+                aggregate: bool = False) -> str:
     # Estructura: para cada T cargamos el CSV (si existe) y producimos dos filas
     # con 12 celdas cada una (4 metricas x 3 bloques H). Si no hay CSV para
     # ese T, igualmente se emite la fila con todas las celdas en "---" para
     # mantener la uniformidad estructural de las tablas.
     per_T_rows: list[tuple[int, list[str], list[str]]] = []  # (T, fila_chronos, fila_clasico)
     any_data = False
+    nm = len(metrics)
     for T in T_LIST:
-        df = load_csv(cfg.csv_prefix, T, data_dir)
+        df = load_csv(cfg.csv_prefix, T, data_dir, aggregate=aggregate)
         if df is None:
-            blanks = [r"---"] * (len(METRICS) * len(BLOCKS))
+            blanks = [r"---"] * (nm * len(BLOCKS))
             per_T_rows.append((T, list(blanks), list(blanks)))
             continue
         any_data = True
@@ -194,22 +215,22 @@ def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR) -> str:
         cl_cells: list[str] = []
         for _, lo, hi in BLOCKS:
             if lo > h_max:
-                ch_cells.extend([r"---"] * len(METRICS))
-                cl_cells.extend([r"---"] * len(METRICS))
+                ch_cells.extend([r"---"] * nm)
+                cl_cells.extend([r"---"] * nm)
                 continue
             hi_eff = min(hi, h_max)
-            agg = aggregate_block(df, lo, hi_eff)
+            agg = aggregate_block(df, lo, hi_eff, metrics=metrics)
             try:
                 ch_name = chronos_row_name(list(agg.keys()))
                 cl_name = classical_row_name(list(agg.keys()))
             except KeyError as exc:
                 print(f"[WARN] {cfg.csv_prefix} T={T}: {exc}")
-                ch_cells.extend([r"---"] * len(METRICS))
-                cl_cells.extend([r"---"] * len(METRICS))
+                ch_cells.extend([r"---"] * nm)
+                cl_cells.extend([r"---"] * nm)
                 continue
             ch_vals = agg[ch_name]
             cl_vals = agg[cl_name]
-            for m in METRICS:
+            for m in metrics:
                 vc = ch_vals.get(m, float("nan"))
                 vt = cl_vals.get(m, float("nan"))
                 win = winner(m, vc, vt)
@@ -220,6 +241,18 @@ def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR) -> str:
     if not any_data:
         return ""
 
+    col_spec = "ll " + " ".join([("c" * nm) for _ in BLOCKS])
+    block_titles = [r"Corto $h \in [1,6]$", r"Medio $h \in [7,18]$", r"Largo $h \in [19,24]$"]
+    head1 = "& & " + " & ".join(
+        rf"\multicolumn{{{nm}}}{{c}}{{{t}}}" for t in block_titles
+    ) + r" \\"
+    cmid_parts = []
+    col_idx = 3
+    for _ in BLOCKS:
+        cmid_parts.append(rf"\cmidrule(lr){{{col_idx}-{col_idx + nm - 1}}}")
+        col_idx += nm
+    metric_header = " & ".join([metric_labels[m] for m in metrics])
+
     lines: list[str] = []
     lines.append(r"\begin{table}[H]")
     lines.append(r"\centering")
@@ -227,15 +260,10 @@ def build_table(cfg: ExpConfig, data_dir: Path = RESULTS_DIR) -> str:
     lines.append(rf"\caption{{Resultados de {cfg.section}.}}")
     lines.append(rf"\label{{tab:exp_{cfg.csv_prefix.replace('-', '').lower()}}}")
     lines.append(r"\resizebox{\textwidth}{!}{%")
-    lines.append(r"\begin{tabular}{ll cccc cccc cccc}")
+    lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
     lines.append(r"\toprule")
-    lines.append(
-        r"& & \multicolumn{4}{c}{Corto $h \in [1,6]$}"
-        r"  & \multicolumn{4}{c}{Medio $h \in [7,18]$}"
-        r"  & \multicolumn{4}{c}{Largo $h \in [19,24]$} \\"
-    )
-    lines.append(r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}\cmidrule(lr){11-14}")
-    metric_header = " & ".join([METRIC_LABELS[m] for m in METRICS])
+    lines.append(head1)
+    lines.append("".join(cmid_parts))
     lines.append(rf"$T$ & Modelo & {metric_header} & {metric_header} & {metric_header} \\")
     lines.append(r"\midrule")
 
@@ -287,6 +315,7 @@ def build_summary_table(
     experiments: dict[str, ExpConfig] = None,
     data_dir: Path = RESULTS_DIR,
     block_name: str = "univariado",
+    aggregate: bool = False,
 ) -> str:
     """Tabla de sintesis de un bloque: cociente metric_Chronos / metric_classical
     por experimento, T y bloque-H. Filas = experimentos, columnas = (T, bloque-H).
@@ -297,7 +326,7 @@ def build_summary_table(
     for tag, cfg in experiments.items():
         cells: list[str] = []
         for T, block_names in SUMMARY_LAYOUT:
-            df = load_csv(cfg.csv_prefix, T, data_dir)
+            df = load_csv(cfg.csv_prefix, T, data_dir, aggregate=aggregate)
             for bname in block_names:
                 lo, hi = BLOCK_RANGES[bname]
                 if df is None:
@@ -308,7 +337,7 @@ def build_summary_table(
                     cells.append(ratio_cell(float("nan")))
                     continue
                 hi_eff = min(hi, h_max)
-                agg = aggregate_block(df, lo, hi_eff)
+                agg = aggregate_block(df, lo, hi_eff, metrics=[metric])
                 try:
                     ch_name = chronos_row_name(list(agg.keys()))
                     cl_name = classical_row_name(list(agg.keys()))
@@ -321,7 +350,7 @@ def build_summary_table(
                     cells.append(ratio_cell(float("nan")))
                     continue
                 cells.append(ratio_cell(v_c / v_t))
-        label = rf"{tag.replace('_', '.')} {cfg.short_label}"
+        label = rf"{cfg.chapter_num} {cfg.short_label}"
         rows_data.append((label, cells))
 
     col_spec = "l " + " ".join(["c" * len(b) for _, b in SUMMARY_LAYOUT])
@@ -330,7 +359,8 @@ def build_summary_table(
     lines.append(r"\begin{table}[H]")
     lines.append(r"\centering")
     lines.append(r"\setlength{\tabcolsep}{5pt}")
-    lines.append(rf"\caption{{Resultados de la s\'intesis del bloque {block_name}.}}")
+    metric_disp = SUMMARY_METRIC_DISPLAY.get(metric, metric.upper())
+    lines.append(rf"\caption{{Resultados de la s\'intesis del bloque {block_name} ({metric_disp}).}}")
     lines.append(
         rf"\label{{tab:sintesis_{block_name.replace(' ', '_')}_{metric}}}"
     )
@@ -366,10 +396,19 @@ def build_summary_table(
     return "\n".join(lines) + "\n"
 
 
+# Cada bloque: (nombre, experimentos, data_dir, prefijo_sintesis, metrics,
+# metric_labels, aggregate, summary_metrics). `summary_metrics` es la lista
+# ordenada [(puntual), (probabilistica)] -> archivos _summary.tex y _summary_crps.tex.
 BLOCK_SPECS = [
-    ("univariado", EXPERIMENTS,       RESULTS_DIR,       "univ"),
-    ("multivariado", EXPERIMENTS_MULTI, RESULTS_DIR_MULTI, "multi"),
-    ("con covariables", EXPERIMENTS_COV,   RESULTS_DIR_COV,   "cov"),
+    ("univariado", EXPERIMENTS, RESULTS_DIR, "univ",
+     METRICS, METRIC_LABELS, False,
+     [("rmse", r"\mathrm{RMSE}"), ("crps", r"\mathrm{CRPS}")]),
+    ("multivariado", EXPERIMENTS_MULTI, RESULTS_DIR_MULTI, "multi",
+     MULTI_METRICS, MULTI_METRIC_LABELS, True,
+     [("trace_msfe", r"\mathrm{Trace\,MSFE}"), ("avg_crps", r"\mathrm{avgCRPS}")]),
+    ("con covariables", EXPERIMENTS_COV, RESULTS_DIR_COV, "cov",
+     METRICS, METRIC_LABELS, False,
+     [("rmse", r"\mathrm{RMSE}"), ("crps", r"\mathrm{CRPS}")]),
 ]
 
 
@@ -406,30 +445,30 @@ EMP_HORIZONS = [1, 3, 6, 12]
 def build_series_table() -> str:
     """Metadata table for the 6 empirical series used in Section 7."""
     rows = [
-        (r"IPC (inflaci\'on)",            r"$\pi_t$",        r"INDEC",          r"\% mensual (TEM)"),
-        (r"Tasa de pol\'itica monetaria", r"$\mathrm{TPM}_t$", r"BCRA",        r"\% mensual (TNA)"),
-        (r"Tasa BADLAR",                  r"$\mathrm{BADLAR}_t$", r"BCRA",     r"\% mensual (TNA)"),
-        (r"Tipo de cambio mayorista",     r"$\mathrm{TCM}_t$", r"BCRA",        r"ARS/USD"),
-        (r"Agregado monetario M2 privado", r"$\mathrm{M2}_t$",  r"BCRA",       r"prom. m\'ovil 30 d\'ias, var. \% i.a."),
-        (r"Expectativas de inflaci\'on (REM, pr\'ox. 12m)",  r"$\mathrm{REM}_t$", r"BCRA (REM)",  r"mediana, var. \% i.a."),
+        (r"IPC ($\pi_t$)",                                  r"INDEC", r"\% var. porcentual mensual"),
+        (r"Tasa de pol\'itica monetaria ($\mathrm{TPM}_t$)", r"BCRA",  r"\% tasa nominal anual"),
+        (r"Tasa BADLAR ($\mathrm{BADLAR}_t$)",              r"BCRA",  r"\% tasa nominal anual"),
+        (r"Tipo de cambio mayorista ($\mathrm{TCM}_t$)",    r"BCRA",  r"relaci\'on ARS/USD"),
+        (r"M2 privado ($\mathrm{M2}_t$)",                   r"BCRA",  r"\% var. i.a., promedio m\'ovil 30 d\'ias"),
+        (r"REM ($\mathrm{REM}_t$)",                         r"BCRA",  r"\% var. i.a., mediana de expectativas a 12 meses"),
     ]
     lines = [
         r"\begin{table}[H]",
         r"\centering",
-        r"\setlength{\tabcolsep}{6pt}",
-        r"\caption{Series macroecon\'omicas argentinas utilizadas en la validaci\'on emp\'irica."
-        r" Per\'iodo com\'un: diciembre 2016 -- abril 2026 (113 observaciones mensuales).}",
+        r"\caption{Series macroecon\'omicas argentinas utilizadas en la validaci\'on emp\'irica.}",
         r"\label{tab:emp_series}",
-        r"\begin{tabular}{llll}",
+        r"\small",
+        r"\setlength{\tabcolsep}{5pt}",
+        r"\begin{tabularx}{\textwidth}{l c X}",
         r"\toprule",
-        r"Serie & S\'imbolo & Fuente & Unidad \\",
+        r"Serie & Fuente & Unidad \\",
         r"\midrule",
     ]
-    for nombre, simb, fuente, unidad in rows:
-        lines.append(f"{nombre} & {simb} & {fuente} & {unidad} \\\\")
+    for nombre, fuente, definicion in rows:
+        lines.append(f"{nombre} & {fuente} & {definicion} \\\\")
     lines += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabularx}",
         r"\end{table}",
         "",
     ]
@@ -480,23 +519,27 @@ def build_empirical_summary_table() -> str:
                 row_cells.append(rf"\multirow{{{len(models)}}}{{*}}{{{sec_label}}}")
             else:
                 row_cells.append("")
-            # Second col: model name (escape underscores)
-            row_cells.append(model.replace("_", r"\_"))
+            # Second col: model name (display Chronos variants uniformly as
+            # "Chronos-2"; escape underscores).
+            display_name = "Chronos-2" if model in chronos_models else model
+            row_cells.append(display_name.replace("_", r"\_"))
 
-            # Numeric cells: one per (metric, h). Background coloured by model
-            # family (Chronos -> purple, classical -> blue). Winner of each
-            # (section, metric, horizon) additionally gets the matching
-            # triangle marker (\winC / \winT); losers carry an invisible
-            # \phantom{\winC} for alignment.
-            row_is_chronos = model in chronos_models
-            macro = r"\cellC" if row_is_chronos else r"\cellT"
+            # Numeric cells: one per (metric, h). Background coloured by the
+            # WINNER's family for that (section, metric, horizon) slice — all
+            # cells of the compared models share the same colour. The winning
+            # cell also gets the matching triangle marker (\winC / \winT);
+            # losers carry an invisible \phantom{\winC} for alignment.
             for metric, _ in EMP_METRICS:
                 for h in EMP_HORIZONS:
                     v = df.loc[(sec_key, model), (metric, h)]
                     txt = fmt_val(v)
                     winner_model = winners.get((metric, h))
+                    winner_is_chronos = (
+                        winner_model in chronos_models if winner_model else False
+                    )
+                    macro = r"\cellC" if winner_is_chronos else r"\cellT"
                     if winner_model == model:
-                        win_sym = r"\winC" if row_is_chronos else r"\winT"
+                        win_sym = r"\winC" if winner_is_chronos else r"\winT"
                         row_cells.append(f"{macro}{{{txt}\\,{win_sym}}}")
                     else:
                         row_cells.append(f"{macro}{{{txt}\\,\\phantom{{\\winC}}}}")
@@ -528,10 +571,7 @@ def build_empirical_summary_table() -> str:
         r"\begin{table}[H]",
         r"\centering",
         r"\setlength{\tabcolsep}{3pt}",
-        r"\caption*{Resumen de m\'etricas sobre $\pi_t$ (IPC mensual). "
-        r"Para cada secci\'on, m\'etrica y horizonte se colorea la celda ganadora: "
-        r"fondo p\'urpura ($\blacktriangle$) si gana un modelo Chronos, fondo azul si "
-        r"gana un cl\'asico. Horizontes $h \in \{1, 3, 6, 12\}$.}",
+        r"\caption{Resumen de m\'etricas sobre $\pi_t$ (IPC mensual).}",
         r"\label{tab:emp_resumen}",
         r"\resizebox{\textwidth}{!}{%",
         rf"\begin{{tabular}}{{{col_spec}}}",
@@ -575,11 +615,13 @@ def main() -> None:
     else:
         print(f"[skip] tabla_empirica_resumen.tex: {EMP_CSV} no existe")
 
-    for block_name, experiments, data_dir, summary_prefix in BLOCK_SPECS:
+    for (block_name, experiments, data_dir, summary_prefix,
+         metrics, metric_labels, aggregate, summary_metrics) in BLOCK_SPECS:
         # Tablas individuales por experimento.
         for tag, cfg in experiments.items():
             out_path = TABLES_DIR / f"exp_{tag}.tex"
-            body = build_table(cfg, data_dir)
+            body = build_table(cfg, data_dir, metrics=metrics,
+                               metric_labels=metric_labels, aggregate=aggregate)
             if not body:
                 print(f"[skip] {tag} ({cfg.exp_id}): no se encontraron CSV; placeholder preservado")
                 continue
@@ -590,16 +632,13 @@ def main() -> None:
             out_path.write_text(header + body, encoding="utf-8")
             print(f"[ok]   {tag} ({cfg.exp_id}) -> {out_path.relative_to(ROOT)}")
 
-        # Tablas de sintesis: una por metrica resumen.
-        summaries = [
-            ("rmse", r"\mathrm{RMSE}", f"{summary_prefix}_summary.tex"),
-            ("crps", r"\mathrm{CRPS}", f"{summary_prefix}_summary_crps.tex"),
-        ]
-        for metric, label_math, filename in summaries:
+        # Tablas de sintesis: una puntual (_summary.tex) y una probabilistica (_summary_crps.tex).
+        filenames = [f"{summary_prefix}_summary.tex", f"{summary_prefix}_summary_crps.tex"]
+        for (metric, label_math), filename in zip(summary_metrics, filenames):
             summary_path = TABLES_DIR / filename
             summary_body = build_summary_table(
                 metric, label_math, experiments=experiments,
-                data_dir=data_dir, block_name=block_name,
+                data_dir=data_dir, block_name=block_name, aggregate=aggregate,
             )
             summary_header = (
                 f"% Tabla de sintesis del bloque {block_name} (cociente {metric.upper()}).\n"
