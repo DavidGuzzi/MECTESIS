@@ -6,7 +6,7 @@ from .chronos import ChronosModel
 from .naive import NaiveModel, DriftModel, SeasonalNaiveModel
 from .sarima_model import SARIMAModel
 from .arima_ext import ARIMAWithTrendModel, ARIMAWithBreakModel
-from .garch_model import ARARCHModel, ARGARCHModel, GARCHModel, ARGJRGARCHModel, AREGARCHModel
+from .garch_model import ARARCHModel, ARGARCHModel, ARIMAXGARCHModel, GARCHModel, ARGJRGARCHModel, AREGARCHModel
 from .markov_switching_model import MarkovSwitchingARModel
 from .ets_model import ETSModel
 from .theta_model import ThetaModel
@@ -29,6 +29,7 @@ __all__ = [
     "ARIMAWithBreakModel",
     "ARARCHModel",
     "ARGARCHModel",
+    "ARIMAXGARCHModel",
     "GARCHModel",
     "ARGJRGARCHModel",
     "AREGARCHModel",
