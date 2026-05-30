@@ -66,11 +66,12 @@ from mectesis.dgp import (
 )
 from mectesis.models import (
     ChronosModel, ChronosMultivariateModel, ChronosCovariateModel,
-    VARModel, VECMModel,
+    ARIMAModel, ETSModel, SARIMAModel, ARGARCHModel,
+    SARIMAXModel, ARDLModel,
+    VARModel, VECMModel, VARGARCHDiagonalModel,
 )
-from mectesis.empirical.autoselect import (
-    AutoARIMAModel, AutoETSModel, AutoSARIMAXModel,
-)
+from mectesis.models.arima_ext import ARIMAWithTrendModel
+from mectesis.models.garch_model import ARIMAXGARCHModel
 
 SEED = 42
 T_TRAIN = 200          # observaciones de entrenamiento
@@ -100,18 +101,17 @@ plt.rcParams.update({
     "ps.fonttype": 42,
 })
 
-# Paleta consistente con tesis_visuales.ipynb
+# Paleta: Chronos (foundation) violeta vs cualquier clasico azul.
 CHRONOS_COLOR = "#9672B6"
 CLASSIC_COLOR = "#4C72B0"
-MODEL_COLORS = {
-    "Chronos-2":    CHRONOS_COLOR,
-    "AutoARIMA":    CLASSIC_COLOR,
-    "AutoETS":      CLASSIC_COLOR,
-    "AutoSARIMAX":  CLASSIC_COLOR,
-    "VAR(1)":       CLASSIC_COLOR,
-    "VAR(2)":       CLASSIC_COLOR,
-    "VECM(r=1)":    CLASSIC_COLOR,
-}
+
+
+def colors_for(forecasts):
+    \"\"\"Mapea cada nombre de modelo a CHRONOS_COLOR si contiene 'Chronos', si no CLASSIC_COLOR.\"\"\"
+    return {
+        name: (CHRONOS_COLOR if \"Chronos\" in name else CLASSIC_COLOR)
+        for name in forecasts
+    }
 
 print("Cargando Chronos-2 desde cache local...")
 chronos = ChronosModel(device="cpu")
@@ -129,49 +129,50 @@ def to_frame(arr, prefix=\"y\"):
     )
 
 
+def _try_intervals(model, horizon, **kwargs):
+    \"\"\"Devuelve (lo80, hi80, lo95, hi95); None si el modelo no soporta intervalos.\"\"\"
+    if not getattr(model, \"supports_intervals\", False):
+        return None, None, None, None
+    try:
+        lo80, hi80 = model.forecast_intervals(horizon, level=0.80, **kwargs)
+        lo95, hi95 = model.forecast_intervals(horizon, level=0.95, **kwargs)
+        return lo80, hi80, lo95, hi95
+    except NotImplementedError:
+        return None, None, None, None
+
+
+def _to_arr(x):
+    return None if x is None else np.asarray(x, dtype=float)
+
+
 def fan_dict_uni(model, y_train, horizon):
     \"\"\"Fit + forecast + intervals para un modelo univariado. Devuelve dict para plot_forecast_fan.\"\"\"
     model.fit(np.asarray(y_train, dtype=float))
     mean = np.asarray(model.forecast(horizon), dtype=float)
-    lo80, hi80 = model.forecast_intervals(horizon, level=0.80)
-    lo95, hi95 = model.forecast_intervals(horizon, level=0.95)
-    return {
-        \"mean\": mean,
-        \"lo80\": np.asarray(lo80, dtype=float),
-        \"hi80\": np.asarray(hi80, dtype=float),
-        \"lo95\": np.asarray(lo95, dtype=float),
-        \"hi95\": np.asarray(hi95, dtype=float),
-    }
+    lo80, hi80, lo95, hi95 = _try_intervals(model, horizon)
+    return {\"mean\": mean,
+            \"lo80\": _to_arr(lo80), \"hi80\": _to_arr(hi80),
+            \"lo95\": _to_arr(lo95), \"hi95\": _to_arr(hi95)}
 
 
 def fan_dict_multi(model, Y_train, horizon):
     \"\"\"Fit + forecast + intervals para un modelo multivariado. Cada entrada es (horizon, k).\"\"\"
     model.fit(np.asarray(Y_train, dtype=float))
     mean = np.asarray(model.forecast(horizon), dtype=float)
-    lo80, hi80 = model.forecast_intervals(horizon, level=0.80)
-    lo95, hi95 = model.forecast_intervals(horizon, level=0.95)
-    return {
-        \"mean\": mean,
-        \"lo80\": np.asarray(lo80, dtype=float),
-        \"hi80\": np.asarray(hi80, dtype=float),
-        \"lo95\": np.asarray(lo95, dtype=float),
-        \"hi95\": np.asarray(hi95, dtype=float),
-    }
+    lo80, hi80, lo95, hi95 = _try_intervals(model, horizon)
+    return {\"mean\": mean,
+            \"lo80\": _to_arr(lo80), \"hi80\": _to_arr(hi80),
+            \"lo95\": _to_arr(lo95), \"hi95\": _to_arr(hi95)}
 
 
 def fan_dict_cov(model, y_train, X_train, X_future, horizon):
-    \"\"\"Fit + forecast + intervals con covariables.\"\"\"
+    \"\"\"Fit + forecast + intervals con covariables. Tolera modelos sin intervalos (e.g. ARDLModel).\"\"\"
     model.fit(np.asarray(y_train, dtype=float), X_train=np.asarray(X_train, dtype=float))
     mean = np.asarray(model.forecast(horizon, X_future=X_future), dtype=float)
-    lo80, hi80 = model.forecast_intervals(horizon, level=0.80, X_future=X_future)
-    lo95, hi95 = model.forecast_intervals(horizon, level=0.95, X_future=X_future)
-    return {
-        \"mean\": mean,
-        \"lo80\": np.asarray(lo80, dtype=float),
-        \"hi80\": np.asarray(hi80, dtype=float),
-        \"lo95\": np.asarray(lo95, dtype=float),
-        \"hi95\": np.asarray(hi95, dtype=float),
-    }
+    lo80, hi80, lo95, hi95 = _try_intervals(model, horizon, X_future=X_future)
+    return {\"mean\": mean,
+            \"lo80\": _to_arr(lo80), \"hi80\": _to_arr(hi80),
+            \"lo95\": _to_arr(lo95), \"hi95\": _to_arr(hi95)}
 
 
 def clip_to_history(ax, y_history, k_sigma=4.0):
@@ -197,38 +198,38 @@ def plot_history_only(ax, y, color=\"#7f7f7f\", lw=0.9, label=None):
 8 DGPs cubriendo los bloques A-G del experimento `univariate_v5_vertexai`.
 Para cada DGP simulamos T=224 obs (T_train=200 + H=24), ajustamos Chronos-2 y
 el mejor metodo clasico del bloque, y mostramos el fan-plot overlay."""),
-    code("""# (id, label, dgp factory que devuelve serie de longitud TOTAL, factory de modelo clasico)
+    code("""# (id, label, dgp_factory, classical_factory) — clasico correctamente especificado por DGP
 uni_dgps = [
     (\"A.1\", r\"AR(1), $\\phi=0.9$\",
         lambda: ARpDGP(phis=[0.9], sigma=1.0, seed=SEED).simulate(TOTAL),
-        lambda: AutoARIMAModel(season_length=1), \"AutoARIMA\"),
+        lambda: ARIMAModel(order=(1, 0, 0))),
     (\"B.1\", r\"MA(1), $\\theta=0.9$\",
         lambda: MAqDGP(thetas=[0.9], sigma=1.0, seed=SEED).simulate(TOTAL),
-        lambda: AutoARIMAModel(season_length=1), \"AutoARIMA\"),
+        lambda: ARIMAModel(order=(0, 0, 1))),
     (\"C.1\", r\"ARMA(2,2)\",
         lambda: ARMApqDGP(phis=[0.4, 0.3], thetas=[0.3, 0.2], sigma=1.0, seed=SEED).simulate(TOTAL),
-        lambda: AutoARIMAModel(season_length=1), \"AutoARIMA\"),
+        lambda: ARIMAModel(order=(2, 0, 2))),
     (\"D.2\", r\"RW + drift $\\delta=0.1$\",
         lambda: RandomWalk(seed=SEED).simulate(TOTAL, drift=0.1, sigma=1.0),
-        lambda: AutoARIMAModel(season_length=1), \"AutoARIMA\"),
+        lambda: ARIMAWithTrendModel(order=(0, 1, 0), trend=\"t\")),
     (\"E.4\", r\"AR(1)+GARCH(1,1), $\\alpha{+}\\beta=0.95$\",
         lambda: AR1GARCH(seed=SEED).simulate(TOTAL, phi=0.3, omega=0.05, alpha=0.1, beta=0.85),
-        lambda: AutoETSModel(season_length=1), \"AutoETS\"),
+        lambda: ARGARCHModel(ar_lags=1, p=1, q=1)),
     (\"F.3\", r\"Damped trend ETS(A,Ad,N)\",
         lambda: DampedTrendDGP(seed=SEED).simulate(TOTAL, phi=0.9),
-        lambda: AutoETSModel(season_length=1), \"AutoETS\"),
+        lambda: ETSModel(trend=\"add\", damped_trend=True)),
     (\"G.1\", r\"SARIMA estacional (s=12)\",
         lambda: SeasonalDGP(seed=SEED).simulate(TOTAL, phi=0.5, Phi=0.5, s=12, integrated=False),
-        lambda: AutoARIMAModel(season_length=12), \"AutoARIMA\"),
+        lambda: SARIMAModel(order=(1, 0, 0), seasonal_order=(1, 0, 0, 12))),
     (\"A.4\", r\"AR(2) con tendencia $\\delta=0.05$\",
         lambda: ARMApqWithTrendDGP(phis=[0.5, 0.3], thetas=[], delta=0.05, sigma=1.0, seed=SEED).simulate(TOTAL),
-        lambda: AutoARIMAModel(season_length=1), \"AutoARIMA\"),
+        lambda: ARIMAWithTrendModel(order=(2, 0, 0), trend=\"ct\")),
 ]
 
 fig, axes = plt.subplots(4, 2, figsize=(8.27, 11.0))
 axes_flat = axes.flatten()
 
-for ax, (exp_id, label, dgp_fn, classic_factory, classic_name) in zip(axes_flat, uni_dgps):
+for ax, (exp_id, label, dgp_fn, classic_factory) in zip(axes_flat, uni_dgps):
     arr = np.asarray(dgp_fn(), dtype=float)
     y_full = to_series(arr)
     y_train = y_full.iloc[:T_TRAIN].values
@@ -240,17 +241,18 @@ for ax, (exp_id, label, dgp_fn, classic_factory, classic_name) in zip(axes_flat,
     except Exception as e:
         print(f\"[{exp_id}] Chronos fallo: {e}\")
 
+    classic = classic_factory()
     try:
-        forecasts[classic_name] = fan_dict_uni(classic_factory(), y_train, HORIZON)
+        forecasts[classic.name] = fan_dict_uni(classic, y_train, HORIZON)
     except Exception as e:
-        print(f\"[{exp_id}] {classic_name} fallo: {e}\")
+        print(f\"[{exp_id}] {classic.name} fallo: {e}\")
 
     plot_forecast_fan(
         y_full, forecasts,
         origin_idx=T_TRAIN, horizon=HORIZON,
         history_tail=HISTORY_TAIL,
         title=f\"{exp_id} --- {label}\",
-        ax=ax, colors=MODEL_COLORS,
+        ax=ax, colors=colors_for(forecasts),
     )
     clip_to_history(ax, y_history)
     ax.legend(loc=\"upper left\", fontsize=6, ncol=2, framealpha=0.85)
@@ -269,7 +271,7 @@ variable por panel) con Chronos-2 (joint mode) y el VAR/VECM clasico
 correspondiente. Para M-B.6 (cerca de raiz unitaria) se recorta el eje y al
 rango +/- 4 std de la historia para evitar que la divergencia de Chronos rompa
 la escala."""),
-    code("""# (id, label, dgp factory, clasico factory, clasico name, clip_flag)
+    code("""# (id, label, dgp_factory, classical_factory, clip_flag) — clasico correctamente especificado
 def _va(a11, a12, a21, a22, rho_sigma=0.3):
     A = np.array([[a11, a12], [a21, a22]])
     Sigma = np.array([[1.0, rho_sigma], [rho_sigma, 1.0]])
@@ -279,36 +281,35 @@ multi_dgps = [
     (\"M-A.1\", r\"VAR(1) biv., interdep. baja\",
         lambda: VARDGP(seed=SEED, A_list=[_va(0.5, 0.1, 0.1, 0.5)[0]],
                        Sigma=_va(0.5, 0.1, 0.1, 0.5)[1]).simulate(TOTAL),
-        lambda: VARModel(lags=1), \"VAR(1)\", False),
+        lambda: VARModel(lags=1), False),
     (\"M-A.2\", r\"VAR(1) biv., interdep. alta\",
         lambda: VARDGP(seed=SEED, A_list=[_va(0.4, 0.4, 0.4, 0.4)[0]],
                        Sigma=_va(0.4, 0.4, 0.4, 0.4)[1]).simulate(TOTAL),
-        lambda: VARModel(lags=1), \"VAR(1)\", False),
+        lambda: VARModel(lags=1), False),
     (\"M-B.6\", r\"VAR(2) cerca de raiz unitaria\",
         lambda: VARDGP(seed=SEED,
                        A_list=[np.array([[0.7, 0.2], [0.15, 0.7]]),
                                np.array([[0.2, 0.05], [0.05, 0.2]])],
                        Sigma=np.eye(2)).simulate(TOTAL),
-        lambda: VARModel(lags=2), \"VAR(2)\", True),
+        lambda: VARModel(lags=2), True),
     (\"M-D.4\", r\"VAR(1)+GARCH diag., $\\alpha{+}\\beta=0.90$\",
         lambda: VARGARCHDiagonalDGP(seed=SEED,
                                     A1=np.array([[0.5, 0.1], [0.1, 0.5]]),
                                     omegas=[0.1, 0.1], alphas=[0.1, 0.1], betas=[0.8, 0.8]).simulate(TOTAL),
-        lambda: VARModel(lags=1), \"VAR(1)\", False),
+        lambda: VARGARCHDiagonalModel(seed=SEED), False),
     (\"M-E.1\", r\"VECM r=1, $\\alpha_1=-0.4$\",
         lambda: VECMBivariateDGP(seed=SEED, alpha=[-0.4, 0.2], beta=[1.0, -1.0],
                                  Gamma1=[[0.3, 0.0], [0.0, 0.3]],
                                  Sigma=[[1.0, 0.0], [0.0, 1.0]]).simulate(TOTAL),
-        lambda: VECMModel(coint_rank=1, k_ar_diff=1), \"VECM(r=1)\", False),
+        lambda: VECMModel(coint_rank=1, k_ar_diff=1), False),
     (\"M-F.1\", r\"Ciclo lento (autovalores complejos)\",
         lambda: VARDGP(seed=SEED,
                        A_list=[np.array([[0.7, -0.5], [0.5, 0.7]])],
                        Sigma=np.eye(2)).simulate(TOTAL),
-        lambda: VARModel(lags=1), \"VAR(1)\", False),
+        lambda: VARModel(lags=1), False),
 ]
 
 # Layout: 3 filas de DGPs x 2 columnas de DGPs; cada DGP ocupa 2 filas internas (1 por variable)
-# Total: 3*2 = 6 filas externas, cada DGP es un bloque de 2 filas x 1 col
 n_dgps = len(multi_dgps)
 ncols_dgp = 2
 nrows_dgp = (n_dgps + ncols_dgp - 1) // ncols_dgp   # = 3
@@ -316,7 +317,7 @@ nrows_dgp = (n_dgps + ncols_dgp - 1) // ncols_dgp   # = 3
 fig = plt.figure(figsize=(8.27, 11.5))
 outer = GridSpec(nrows_dgp, ncols_dgp, figure=fig, hspace=0.55, wspace=0.30)
 
-for d, (exp_id, label, dgp_fn, classic_factory, classic_name, do_clip) in enumerate(multi_dgps):
+for d, (exp_id, label, dgp_fn, classic_factory, do_clip) in enumerate(multi_dgps):
     r, c = divmod(d, ncols_dgp)
     inner = outer[r, c].subgridspec(2, 1, hspace=0.30)
 
@@ -332,11 +333,12 @@ for d, (exp_id, label, dgp_fn, classic_factory, classic_name, do_clip) in enumer
         print(f\"[{exp_id}] Chronos multi fallo: {e}\")
         f_chronos = None
 
-    # Clasico
+    # Clasico correctamente especificado
+    classic = classic_factory()
     try:
-        f_classic = fan_dict_multi(classic_factory(), Y_train, HORIZON)
+        f_classic = fan_dict_multi(classic, Y_train, HORIZON)
     except Exception as e:
-        print(f\"[{exp_id}] {classic_name} fallo: {e}\")
+        print(f\"[{exp_id}] {classic.name} fallo: {e}\")
         f_classic = None
 
     for j in range(2):
@@ -345,14 +347,14 @@ for d, (exp_id, label, dgp_fn, classic_factory, classic_name, do_clip) in enumer
         if f_chronos is not None:
             forecasts[\"Chronos-2\"] = f_chronos
         if f_classic is not None:
-            forecasts[classic_name] = f_classic
+            forecasts[classic.name] = f_classic
 
         plot_forecast_fan(
             Y_full.iloc[:, j], forecasts,
             origin_idx=T_TRAIN, horizon=HORIZON,
             history_tail=HISTORY_TAIL,
             title=(f\"{exp_id} --- {label}\" if j == 0 else \"\"),
-            ax=ax, variable_idx=j, colors=MODEL_COLORS,
+            ax=ax, variable_idx=j, colors=colors_for(forecasts),
         )
         if do_clip:
             clip_to_history(ax, Y_full.iloc[:T_TRAIN, j].values)
@@ -378,22 +380,22 @@ solo como historia (linea gris), para ilustrar como participa la X."""),
 cov_dgps = [
     (\"C-A.1\", r\"ARIMAX(1,0,0), efecto fuerte ($\\beta=0.8$)\",
         lambda: ARIMAX_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta=0.8, rho_x=0.7),
-        lambda: AutoSARIMAXModel(season_length=1)),
+        lambda: SARIMAXModel(order=(1, 0, 0))),
     (\"C-B.1\", r\"ARIMAX(1,0,0), efecto debil ($\\beta=0.2$)\",
         lambda: ARIMAX_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta=0.2, rho_x=0.7),
-        lambda: AutoSARIMAXModel(season_length=1)),
+        lambda: SARIMAXModel(order=(1, 0, 0))),
     (\"C-C.1\", r\"ARIMAX-GARCH(1,1)\",
         lambda: ARIMAX_GARCH_DGP(seed=SEED).simulate(TOTAL, phi=0.4, beta_mean=0.5, omega=0.1, alpha=0.1, beta_garch=0.75, delta_var=0.1),
-        lambda: AutoSARIMAXModel(season_length=1)),
+        lambda: ARIMAXGARCHModel(ar_lags=1, p=1, q=1)),
     (\"C-E.1\", r\"SARIMAX estacional (s=12)\",
         lambda: SARIMAX_SEASONAL_DGP(seed=SEED).simulate(TOTAL, s=12, phi=0.5, Phi=0.5, beta=0.5),
-        lambda: AutoSARIMAXModel(season_length=12)),
+        lambda: SARIMAXModel(order=(1, 0, 0), seasonal_order=(1, 0, 0, 12))),
     (\"C-I.1\", r\"ADL covariable debilmente exogena\",
         lambda: ARIMAX_DGP(seed=SEED).simulate(TOTAL, phi=0.7, beta=0.5, rho_x=0.9),
-        lambda: AutoSARIMAXModel(season_length=1)),
+        lambda: SARIMAXModel(order=(1, 0, 0))),
     (\"C-J.1\", r\"ADL-ECM covariable cointegrada\",
         lambda: ADL_ECM_DGP(seed=SEED).simulate(TOTAL, alpha_ecm=-0.3),
-        lambda: AutoSARIMAXModel(season_length=1)),
+        lambda: ARDLModel()),
 ]
 
 n_dgps = len(cov_dgps)
@@ -426,10 +428,11 @@ for d, (exp_id, label, dgp_fn, classic_factory) in enumerate(cov_dgps):
     except Exception as e:
         print(f\"[{exp_id}] Chronos cov fallo: {e}\")
 
+    classic = classic_factory()
     try:
-        forecasts[\"AutoSARIMAX\"] = fan_dict_cov(classic_factory(), y_train, X_train, X_future, HORIZON)
+        forecasts[classic.name] = fan_dict_cov(classic, y_train, X_train, X_future, HORIZON)
     except Exception as e:
-        print(f\"[{exp_id}] AutoSARIMAX fallo: {e}\")
+        print(f\"[{exp_id}] {classic.name} fallo: {e}\")
 
     # Sub-panel 1: target con fan-plot
     ax_y = fig.add_subplot(inner[0])
@@ -438,7 +441,7 @@ for d, (exp_id, label, dgp_fn, classic_factory) in enumerate(cov_dgps):
         origin_idx=T_TRAIN, horizon=HORIZON,
         history_tail=HISTORY_TAIL,
         title=f\"{exp_id} --- {label}\",
-        ax=ax_y, colors=MODEL_COLORS,
+        ax=ax_y, colors=colors_for(forecasts),
     )
     ax_y.set_ylabel(\"$Y_t$\", fontsize=8)
     ax_y.tick_params(labelsize=6)
