@@ -28,7 +28,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = ROOT / "notebooks" / "results" / "univariate_v5_vertexai"
 RESULTS_DIR_MULTI = ROOT / "notebooks" / "results" / "multivariate_v6_vertexai"
-RESULTS_DIR_COV = ROOT / "notebooks" / "results" / "covariate_v6_vertexai"
+RESULTS_DIR_COV = ROOT / "notebooks" / "results" / "covariate_v6_ajustado_vertexai"
 TABLES_DIR = ROOT / "entrega" / "tesis" / "tables"
 
 T_LIST = [50, 100, 200]
@@ -79,8 +79,8 @@ EXPERIMENTS = {
     "4_2": ExpConfig("B.26", "B_26", r"AR(1)$+$trend",                         r"AR(1) $+$ tendencia",   r"procesos con tendencia determin\'istica",          "3.2.2"),
     "4_3": ExpConfig("C.2",  "C_2",  r"RW $+$ drift",                          r"RW $+$ drift",          r"procesos integrados y no estacionarios",           "3.2.3"),
     "4_4": ExpConfig("D.4",  "D_4",  r"AR(1)$+$GARCH(1,1)",                    r"AR(1) $+$ GARCH",       r"procesos con heteroscedasticidad condicional",     "3.2.4"),
-    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)",            r"procesos con tendencia y estacionalidad",          "3.2.5"),
-    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$",       r"procesos autoregresivos estacionales",             "3.2.6"),
+    "4_5": ExpConfig("E.6",  "E_6",  r"ETS(A,A,A) $s{=}12$",                   r"ETS(A,A,A)",            r"procesos con tendencia y estacionalidad aditivas", "3.2.5"),
+    "4_6": ExpConfig("F.4",  "F_4",  r"SARIMA $(1,0,0)\times(1,0,0)_{12}$",    r"SARIMA $s{=}12$",       r"procesos estacionales multiplicativos",            "3.2.6"),
     "4_7": ExpConfig("G.3",  "G_3",  r"AR(1) lineal",                          r"LSTAR(1)",              r"procesos no lineales con cambio de r\'egimen",     "3.2.7"),
 }
 
@@ -91,8 +91,8 @@ EXPERIMENTS_MULTI = {
 }
 
 EXPERIMENTS_COV = {
-    "6_1": ExpConfig("C-A.1", "C-A_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ fuerte",     r"procesos con covariable ex\'ogena de efecto fuerte",            "3.4.1"),
-    "6_2": ExpConfig("C-D.1", "C-D_1", r"SARIMAX(1,0,0)$+X$",                    r"SARIMAX $+X$ con GARCH",  r"procesos con covariable bajo heteroscedasticidad condicional",  "3.4.2"),
+    "6_1": ExpConfig("C-A.1", "C-A_1", r"ARIMAX(1,0,0)$+X$",                     r"ARIMAX $+X$ fuerte",      r"procesos con covariable ex\'ogena de efecto fuerte",            "3.4.1"),
+    "6_2": ExpConfig("C-D.1", "C-D_1", r"AR(1)$+$GARCH(1,1)$+X$",                r"AR$+$GARCH $+X$",         r"procesos con covariable bajo heteroscedasticidad condicional",  "3.4.2"),
     "6_3": ExpConfig("C-H.4", "C-H_4", r"SARIMAX$(1,0,0)(1,0,0)_{12}+X$",        r"SARIMAX estac. $+X$",     r"procesos con covariable bajo estacionalidad mensual",           "3.4.3"),
 }
 

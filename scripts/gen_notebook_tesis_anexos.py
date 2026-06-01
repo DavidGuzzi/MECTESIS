@@ -65,11 +65,12 @@ from mectesis.dgp import (
     LocalTrendDGP, LocalLevelSeasonalDGP,
     SETARDGp, LSTARDGp,
     VARDGP, VECMBivariateDGP, VARGARCHDiagonalDGP,
-    ARIMAX_DGP, ARIMAX2Cov_DGP, ARIMAX_GARCH_DGP, SARIMAX_SEASONAL_DGP, ADL_ECM_DGP,
+    ARIMAX_DGP, ARIMAX2Cov_DGP, ARIMAX_GARCH_DGP, ARIMAX_TREND_DGP,
+    SARIMAX_SEASONAL_DGP, ADL_ECM_DGP,
 )
 from mectesis.models import (
     ChronosModel, ChronosMultivariateModel, ChronosCovariateModel,
-    ARIMAModel, ETSModel, SARIMAModel, ARGARCHModel,
+    ARIMAModel, ETSModel, SARIMAModel, ARGARCHModel, ARIMAXGARCHModel,
     SARIMAXModel, ARDLModel,
     VARModel, VECMModel, VARGARCHDiagonalModel,
 )
@@ -194,7 +195,34 @@ def plot_history_only(ax, y, color=\"#7f7f7f\", lw=0.9, label=None):
 
 def grid_pos(i, ncols=2):
     \"\"\"Devuelve (row, col) llenando la grilla derecha-luego-izquierda, top-down.\"\"\"
-    return i // ncols, (ncols - 1) - (i % ncols)"""),
+    return i // ncols, (ncols - 1) - (i % ncols)
+
+
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from matplotlib.legend_handler import HandlerTuple
+
+
+def add_top_legend(fig, with_cov=False):
+    # Una unica leyenda a nivel figura, encima de los paneles (no se repite por panel).
+    # La 'Banda 80%' se dibuja con un swatch de dos colores (Chronos y clasico).
+    band_chronos = Patch(facecolor=CHRONOS_COLOR, alpha=0.30, edgecolor=\"none\")
+    band_classic = Patch(facecolor=CLASSIC_COLOR, alpha=0.30, edgecolor=\"none\")
+    handles = [
+        Line2D([0], [0], color=\"#1f4068\", lw=1.6),
+        Line2D([0], [0], color=\"#1f4068\", lw=1.6, ls=\"--\", alpha=0.6),
+        Line2D([0], [0], color=CHRONOS_COLOR, lw=2.2),
+        Line2D([0], [0], color=CLASSIC_COLOR, lw=2.2),
+        (band_chronos, band_classic),
+    ]
+    labels = [\"Observado\", \"Realizado\", \"Chronos-2\", \"Modelo clásico\", \"Banda 80%\"]
+    if with_cov:
+        handles.append(Line2D([0], [0], color=\"#3a3a3a\", lw=1.2))
+        labels.append(\"Covariable(s)\")
+    fig.legend(handles, labels, loc=\"lower center\", ncol=len(labels),
+               fontsize=7, frameon=True, framealpha=0.9, bbox_to_anchor=(0.5, 1.0),
+               columnspacing=1.1, handletextpad=0.4,
+               handler_map={tuple: HandlerTuple(ndivide=None)})"""),
     md("""## 2 · Bloque univariado --- `anexo_simulaciones_univariadas.pdf`
 
 20 DGPs del v5_cloud distribuidos en 2 paginas A4 (5 filas x 2 columnas por pagina).
@@ -273,7 +301,7 @@ uni_dgps_pages = [
 out = OUTPUT_DIR / \"anexo_simulaciones_univariadas.pdf\"
 with PdfPages(out) as pdf:
     for page_idx, page_dgps in enumerate(uni_dgps_pages, start=1):
-        fig, axes = plt.subplots(5, 2, figsize=(8.27, 11.0))
+        fig, axes = plt.subplots(5, 2, figsize=(6.30, 9.00))
         for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(page_dgps):
             r, c = grid_pos(i, ncols=2)
             ax = axes[r, c]
@@ -297,12 +325,13 @@ with PdfPages(out) as pdf:
                 y_full, forecasts,
                 origin_idx=T_TRAIN, horizon=HORIZON,
                 history_tail=HISTORY_TAIL,
-                title=f\"{exp_id} --- {label}\",
+                title=label,
                 ax=ax, colors=colors_for(forecasts),
+                show_legend=False,
             )
-            ax.legend(loc=\"upper left\", fontsize=5, ncol=2, framealpha=0.85)
             ax.tick_params(labelsize=6)
         fig.tight_layout(h_pad=1.0, w_pad=1.5)
+        add_top_legend(fig)
         pdf.savefig(fig, bbox_inches=\"tight\")
         plt.show()
         plt.close(fig)
@@ -373,7 +402,7 @@ multi_dgps = [
 ]
 
 # Layout: 5 filas x 2 cols de DGPs, una celda por DGP (solo Y1)
-fig, axes = plt.subplots(5, 2, figsize=(8.27, 11.0))
+fig, axes = plt.subplots(5, 2, figsize=(6.30, 9.00))
 
 for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(multi_dgps):
     r, c = grid_pos(i, ncols=2)
@@ -408,13 +437,14 @@ for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(multi_dgps):
         Y_full.iloc[:, 0], forecasts,
         origin_idx=T_TRAIN, horizon=HORIZON,
         history_tail=HISTORY_TAIL,
-        title=f\"{exp_id} --- {label}\",
+        title=label,
         ax=ax, variable_idx=0, colors=colors_for(forecasts),
+        show_legend=False,
     )
-    ax.legend(loc=\"upper left\", fontsize=5, ncol=2, framealpha=0.85)
     ax.tick_params(labelsize=6)
 
 fig.tight_layout(h_pad=1.0, w_pad=1.5)
+add_top_legend(fig)
 out = OUTPUT_DIR / \"anexo_simulaciones_multivariadas.pdf\"
 fig.savefig(out, bbox_inches=\"tight\")
 print(f\"Saved: {out}\")
@@ -434,12 +464,18 @@ cov_dgps = [
     (\"C-A.3\", r\"ARIMAX(1) $\\beta=0.2$\",
         lambda: ARIMAX_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta=0.2, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
         lambda: SARIMAXModel(order=(1, 0, 0), name_suffix=\"con X\")),
-    (\"C-C.1\", r\"ARIMAX 2-cov asimetricas\",
-        lambda: ARIMAX2Cov_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta1=0.8, beta2=0.4, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
+    (\"C-C.4\", r\"ARIMAX 2-cov signos opuestos\",
+        lambda: ARIMAX2Cov_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta1=0.8, beta2=-0.5, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
         lambda: SARIMAXModel(order=(1, 0, 0), name_suffix=\"con X\")),
     (\"C-C.3\", r\"ARIMAX 2-cov filtrado ($\\beta_2=0$)\",
         lambda: ARIMAX2Cov_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta1=0.8, beta2=0.0, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
         lambda: SARIMAXModel(order=(1, 0, 0), name_suffix=\"con X\")),
+    (\"C-D.1\", r\"ARIMAX-GARCH solo media\",
+        lambda: ARIMAX_GARCH_DGP(seed=SEED).simulate(TOTAL, phi=0.4, beta_mean=0.5, omega=0.1, alpha=0.1, beta_garch=0.75, delta_var=0.0, sigma_x=1.0, rho_x=0.7),
+        lambda: ARIMAXGARCHModel(ar_lags=1, p=1, q=1)),
+    (\"C-G.2\", r\"ARIMAX + tendencia fuerte ($\\delta=0.10$)\",
+        lambda: ARIMAX_TREND_DGP(seed=SEED).simulate(TOTAL, phi=0.6, beta=0.5, alpha=0.0, delta=0.10, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
+        lambda: SARIMAXModel(order=(1, 0, 0), trend=\"ct\", name_suffix=\"con X+trend\")),
     (\"C-H.1\", r\"Estacional s=4 $\\beta=0.5$\",
         lambda: SARIMAX_SEASONAL_DGP(seed=SEED).simulate(TOTAL, s=4, phi=0.3, Phi=0.7, beta=0.5, sigma_y=1.0, sigma_x=1.0, rho_x=0.7),
         lambda: SARIMAXModel(order=(1, 0, 0), seasonal_order=(1, 0, 0, 4), name_suffix=\"con X\")),
@@ -448,9 +484,10 @@ cov_dgps = [
         lambda: SARIMAXModel(order=(1, 0, 0), seasonal_order=(1, 0, 0, 12), name_suffix=\"con X\")),
 ]
 
-# Layout: 3 filas x 2 cols de DGPs, cada DGP en sub-grid (Y arriba con ratio 1.7, X1 abajo con ratio 1.0)
-fig = plt.figure(figsize=(8.27, 11.0))
-outer = GridSpec(3, 2, figure=fig, hspace=0.55, wspace=0.30)
+# Layout: 4 filas x 2 cols de DGPs, cada DGP en sub-grid (Y arriba con ratio 1.7, X1 abajo con ratio 1.0)
+fig = plt.figure(figsize=(6.30, 9.40))
+outer = GridSpec(4, 2, figure=fig, hspace=0.55, wspace=0.30,
+                 top=0.97, bottom=0.045, left=0.10, right=0.975)
 
 for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(cov_dgps):
     r, c = grid_pos(i, ncols=2)
@@ -487,12 +524,12 @@ for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(cov_dgps):
         y_full, forecasts,
         origin_idx=T_TRAIN, horizon=HORIZON,
         history_tail=HISTORY_TAIL,
-        title=f\"{exp_id} --- {label}\",
+        title=label,
         ax=ax_y, colors=colors_for(forecasts),
+        show_legend=False,
     )
     ax_y.set_ylabel(\"$Y_t$\", fontsize=7)
     ax_y.tick_params(labelsize=5)
-    ax_y.legend(loc=\"upper left\", fontsize=5, ncol=2, framealpha=0.85)
 
     # Sub-panel 2: exogenas (solo historia, una linea por covariable, overlay con distintos grises)
     ax_x = fig.add_subplot(inner[1])
@@ -507,9 +544,8 @@ for i, (exp_id, label, dgp_fn, classic_factory) in enumerate(cov_dgps):
     ax_x.set_ylabel(\"$X_t$\", fontsize=7)
     ax_x.tick_params(labelsize=5)
     ax_x.set_xlim(*ax_y.get_xlim())
-    if p_x > 1:
-        ax_x.legend(loc=\"upper left\", fontsize=5, ncol=p_x, framealpha=0.85)
 
+add_top_legend(fig, with_cov=True)
 out = OUTPUT_DIR / \"anexo_simulaciones_covariadas.pdf\"
 fig.savefig(out, bbox_inches=\"tight\")
 print(f\"Saved: {out}\")

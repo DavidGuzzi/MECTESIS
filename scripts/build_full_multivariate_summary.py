@@ -63,6 +63,11 @@ METRIC_LABELS = {
 
 # Orden de los bloques M-A .. M-G.
 BLOCK_ORDER = ["M-A", "M-B", "M-C", "M-D", "M-E", "M-F", "M-G"]
+
+# Experimentos excluidos del resumen del anexo. M-B.6 (VAR(2) cerca de raiz
+# unitaria) se omite porque Chronos diverge ~1e7x y sus magnitudes degeneradas
+# distorsionan la lectura del cuadro.
+EXCLUDE_EXPERIMENTS: set[tuple[str, int]] = {("M-B", 6)}
 EXP_RE = re.compile(r"^exp_(M-[A-G])_(\d+)_T(\d+)_R" + str(R) + r"\.csv$")
 
 # Resumen en lenguaje llano de cada bloque, para el renglon de cabecera que
@@ -239,6 +244,8 @@ def discover_experiments() -> list[tuple[str, int]]:
     for p in RESULTS_DIR.glob("exp_*_R*.csv"):
         m = EXP_RE.match(p.name)
         if m:
+            if (m.group(1), int(m.group(2))) in EXCLUDE_EXPERIMENTS:
+                continue
             found.add((m.group(1), int(m.group(2))))
     return sorted(found, key=lambda bi: (BLOCK_ORDER.index(bi[0])
                                          if bi[0] in BLOCK_ORDER else 99, bi[1]))
@@ -363,7 +370,7 @@ def build_full_summary_for_T(
     lines.append(r"\begin{center}")
     lines.append(rf"\captionof{{table}}{{}}\label{{tab:multiv_full_T{T}}}")
     lines.append(r"\par\vspace{3pt}")
-    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.9\textheight}")
+    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.85\textheight}")
     lines.append(r"\setlength{\tabcolsep}{4pt}")
     lines.append(r"\renewcommand{\arraystretch}{1.05}")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
@@ -481,9 +488,12 @@ def build_combined_summary(
 
     lines: list[str] = []
     lines.append(r"\begin{center}")
-    lines.append(r"\captionof{table}{}\label{tab:multiv_full_combinado}")
+    lines.append(
+        r"\captionof{table}{Resumen completo del bloque multivariado.}"
+        r"\label{tab:multiv_full_combinado}"
+    )
     lines.append(r"\par\vspace{3pt}")
-    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.9\textheight}")
+    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.85\textheight}")
     lines.append(r"\setlength{\tabcolsep}{3pt}")
     lines.append(r"\renewcommand{\arraystretch}{1.05}")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")

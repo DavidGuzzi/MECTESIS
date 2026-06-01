@@ -91,6 +91,8 @@ def plot_forecast_fan(
     ax=None,
     variable_idx: int | None = None,
     colors: dict | None = None,
+    show_legend: bool = True,
+    linewidth: float = 1.4,
 ):
     """
     Overlay multiple model forecasts on the recent history, with 80 % and
@@ -115,10 +117,10 @@ def plot_forecast_fan(
 
     hist_start = max(0, origin_idx - history_tail)
     hist = y.iloc[hist_start:origin_idx + 1]
-    ax.plot(hist.index, hist.values, color="#1f4068", linewidth=1.4, label="observado")
+    ax.plot(hist.index, hist.values, color="#1f4068", linewidth=linewidth, label="observado")
     if origin_idx + horizon <= len(y):
         realised = y.iloc[origin_idx:origin_idx + horizon + 1]
-        ax.plot(realised.index, realised.values, color="#1f4068", linewidth=1.4,
+        ax.plot(realised.index, realised.values, color="#1f4068", linewidth=linewidth,
                 linestyle="--", alpha=0.55, label="realizado")
 
     future_idx = y.index[origin_idx:origin_idx + horizon]
@@ -130,7 +132,7 @@ def plot_forecast_fan(
         mean = f["mean"]
         if variable_idx is not None and mean.ndim > 1:
             mean = mean[:, variable_idx]
-        ax.plot(future_idx, mean, color=color, linewidth=1.5, label=name)
+        ax.plot(future_idx, mean, color=color, linewidth=linewidth, label=name)
         for tag, alpha in (("80", 0.18), ("95", 0.09)):
             lo, hi = f.get(f"lo{tag}"), f.get(f"hi{tag}")
             if lo is None or hi is None:
@@ -142,7 +144,8 @@ def plot_forecast_fan(
     ax.axvline(y.index[origin_idx], color="grey", linestyle=":", linewidth=0.8)
     ax.set_title(title)
     ax.grid(alpha=0.3)
-    ax.legend(loc="best", fontsize=8, ncol=2)
+    if show_legend:
+        ax.legend(loc="best", fontsize=8, ncol=2)
     return ax
 
 

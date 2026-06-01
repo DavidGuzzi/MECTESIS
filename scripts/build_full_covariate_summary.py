@@ -38,9 +38,9 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULTS_DIR = ROOT / "notebooks" / "results" / "covariate_v6_vertexai"
+RESULTS_DIR = ROOT / "notebooks" / "results" / "covariate_v6_ajustado_vertexai"
 OUTPUT_DIR = ROOT / "entrega" / "tesis" / "output"
-NOTEBOOK = ROOT / "notebooks" / "experimentos_covariables_v6_cloud.ipynb"
+NOTEBOOK = ROOT / "notebooks" / "experimentos_covariables_v6_cloud_ajustado.ipynb"
 
 T_LIST = [50, 100, 200]
 R = 500
@@ -338,7 +338,7 @@ def build_full_summary_for_T(
     lines.append(r"\begin{center}")
     lines.append(rf"\captionof{{table}}{{}}\label{{tab:cov_full_T{T}}}")
     lines.append(r"\par\vspace{3pt}")
-    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.9\textheight}")
+    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.85\textheight}")
     lines.append(r"\setlength{\tabcolsep}{4pt}")
     lines.append(r"\renewcommand{\arraystretch}{1.05}")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
@@ -455,9 +455,12 @@ def build_combined_summary(
 
     lines: list[str] = []
     lines.append(r"\begin{center}")
-    lines.append(r"\captionof{table}{}\label{tab:cov_full_combinado}")
+    lines.append(
+        r"\captionof{table}{Resumen completo del bloque con covariables.}"
+        r"\label{tab:cov_full_combinado}"
+    )
     lines.append(r"\par\vspace{3pt}")
-    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.9\textheight}")
+    lines.append(r"\begin{adjustbox}{max width=\textwidth, max totalheight=0.85\textheight}")
     lines.append(r"\setlength{\tabcolsep}{3pt}")
     lines.append(r"\renewcommand{\arraystretch}{1.05}")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
